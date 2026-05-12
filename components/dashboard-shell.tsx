@@ -1,11 +1,20 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Newspaper, RefreshCcw, Sparkles, Video } from "lucide-react";
+import { LoaderCircle, Newspaper, RefreshCcw, Sparkles, Video } from "lucide-react";
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-import type { StoryRecord, TrendingCategory } from "@/lib/types";
+import { formatDistanceToNowStrict } from "@/lib/date";
+import {
+  CATEGORY_OPTIONS,
+  getCategoryLabel
+} from "@/lib/types";
+import type {
+  CategoryFilter,
+  StoryRecord,
+  StorySortOption
+} from "@/lib/types";
 import { StoryGenerator } from "@/components/story-generator";
 import { StoryList } from "@/components/story-list";
 import { Badge } from "@/components/ui/badge";
@@ -20,27 +29,49 @@ import {
 } from "@/components/ui/select";
 
 type DashboardShellProps = {
-  category: TrendingCategory;
+  category: CategoryFilter;
+  sort: StorySortOption;
   stories: StoryRecord[];
   selectedStory: StoryRecord | null;
 };
 
 export function DashboardShell({
   category,
+  sort,
   stories,
   selectedStory
 }: DashboardShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isNavigating, startNavigationTransition] = useTransition();
   const [isSyncing, startSyncTransition] = useTransition();
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
-  const selectedLabel = category === "movies" ? "Movies" : "News";
+  const selectedLabel = getCategoryLabel(category);
+  const creatorHint = selectedStory
+    ? "Story selected. Open a Gem on the right to generate your script."
+    : "Select a story to generate video or web story scripts.";
+  const lastSyncedAt = stories.reduce<string | null>((latest, story) => {
+    if (!latest) {
+      return story.inserted_at;
+    }
 
-  const updateParams = (nextCategory: TrendingCategory, storyId?: string) => {
+    return new Date(story.inserted_at).getTime() > new Date(latest).getTime()
+      ? story.inserted_at
+      : latest;
+  }, null);
+
+  const updateParams = (
+    nextCategory: CategoryFilter,
+    nextSort?: StorySortOption,
+    storyId?: string
+  ) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("category", nextCategory);
+    params.delete("subcategory");
+
+    params.set("sort", nextSort ?? sort);
 
     if (storyId) {
       params.set("storyId", storyId);
@@ -49,7 +80,9 @@ export function DashboardShell({
     }
 
     const href = `${pathname}?${params.toString()}` as Route;
-    router.push(href);
+    startNavigationTransition(() => {
+      router.push(href);
+    });
   };
 
   const handleSync = () => {
@@ -60,6 +93,7 @@ export function DashboardShell({
       const payload = (await response.json()) as {
         inserted?: number;
         skipped?: number;
+        deleted?: number;
         error?: string;
       };
 
@@ -69,7 +103,7 @@ export function DashboardShell({
       }
 
       setSyncMessage(
-        `Sync complete: ${payload.inserted ?? 0} new stories, ${payload.skipped ?? 0} duplicates skipped.`
+        `Sync complete: ${payload.inserted ?? 0} new stories, ${payload.skipped ?? 0} duplicate URLs skipped, ${payload.deleted ?? 0} stale stories deleted.`
       );
       router.refresh();
     });
@@ -83,10 +117,10 @@ export function DashboardShell({
             <Sparkles className="size-6" />
           </div>
           <div>
-            <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">
-              Scout Desk
+            <h1 className="text-xl font-extrabold">Media Radar</h1>
+            <p className="text-sm text-muted-foreground">
+              Track fresh stories across news, movies, and tech.
             </p>
-            <h1 className="text-xl font-extrabold">Telugu Media Content Scout</h1>
           </div>
         </div>
 
@@ -100,14 +134,46 @@ export function DashboardShell({
             <CardContent className="px-0 pb-0">
               <Select
                 value={category}
-                onValueChange={(value: TrendingCategory) => updateParams(value)}
+                onValueChange={(value: CategoryFilter) =>
+                  updateParams(value, sort)
+                }
+                disabled={isNavigating}
               >
                 <SelectTrigger className="h-12 rounded-2xl border bg-card">
                   <SelectValue placeholder="Choose a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="news">News</SelectItem>
-                  <SelectItem value="movies">Movies</SelectItem>
+                  {CATEGORY_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+
+          <Card className="border-none bg-transparent shadow-none">
+            <CardHeader className="px-0 pt-0">
+              <CardTitle className="text-sm font-semibold text-muted-foreground">
+                Sort By
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-0 pb-0">
+              <Select
+                value={sort}
+                onValueChange={(value: StorySortOption) =>
+                  updateParams(category, value)
+                }
+                disabled={isNavigating}
+              >
+                <SelectTrigger className="h-12 rounded-2xl border bg-card">
+                  <SelectValue placeholder="Choose sorting" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="virality">Virality Score</SelectItem>
+                  <SelectItem value="publishedAt">Published</SelectItem>
+                  <SelectItem value="syncedAt">Synced Time</SelectItem>
                 </SelectContent>
               </Select>
             </CardContent>
@@ -119,8 +185,7 @@ export function DashboardShell({
                 {selectedLabel}
               </Badge>
               <p className="text-sm text-muted-foreground">
-                Fresh RSS stories are embedded, deduplicated with pgvector, and
-                ranked for creator-ready output.
+                Latest stories from the past 24 hours, sorted and ready to script.
               </p>
               <Button
                 className="h-11 w-full rounded-2xl"
@@ -130,8 +195,20 @@ export function DashboardShell({
                 <RefreshCcw className="mr-2 size-4" />
                 {isSyncing ? "Syncing feeds..." : "Refresh feeds"}
               </Button>
+              <p className="text-sm text-muted-foreground">
+                Last refreshed{" "}
+                {lastSyncedAt
+                  ? formatDistanceToNowStrict(lastSyncedAt)
+                  : "not available"}
+              </p>
               {syncMessage ? (
                 <p className="text-sm text-muted-foreground">{syncMessage}</p>
+              ) : null}
+              {isNavigating ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <LoaderCircle className="size-4 animate-spin" />
+                  Updating stories...
+                </div>
               ) : null}
             </CardContent>
           </Card>
@@ -148,11 +225,10 @@ export function DashboardShell({
             <div className="rounded-3xl border bg-card/90 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold">
                 <Video className="size-4 text-primary" />
-                Output kit
+                Creator Status
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
-                Long-form, Shorts, titles, SEO, and a content plan for each
-                selected trend.
+                {creatorHint}
               </p>
             </div>
           </div>
@@ -162,9 +238,11 @@ export function DashboardShell({
       <section className="grid gap-4 xl:grid-cols-[360px_1fr]">
         <StoryList
           category={category}
+          sort={sort}
           stories={stories}
+          disabled={isNavigating}
           selectedStoryId={selectedStory?.id ?? null}
-          onSelectStory={(storyId) => updateParams(category, storyId)}
+          onSelectStory={(storyId) => updateParams(category, sort, storyId)}
         />
         <StoryGenerator story={selectedStory} />
       </section>

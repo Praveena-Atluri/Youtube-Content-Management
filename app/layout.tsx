@@ -15,8 +15,8 @@ const teluguFont = Noto_Sans_Telugu({
 });
 
 export const metadata: Metadata = {
-  title: "Telugu Media Content Scout",
-  description: "Scout Telugu trends, deduplicate stories, and generate video-ready scripts."
+  title: "Media Radar",
+  description: "Track stories across multiple sources and turn them into creator-ready outputs."
 };
 
 export default function RootLayout({

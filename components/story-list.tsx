@@ -1,31 +1,45 @@
 "use client";
 
 import { formatDistanceToNowStrict } from "@/lib/date";
-import type { StoryRecord, TrendingCategory } from "@/lib/types";
+import { getCategoryLabel } from "@/lib/types";
+import type { CategoryFilter, StorySortOption, StoryRecord } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 type StoryListProps = {
-  category: TrendingCategory;
+  category: CategoryFilter;
+  sort: StorySortOption;
   stories: StoryRecord[];
+  disabled?: boolean;
   selectedStoryId: string | null;
   onSelectStory: (storyId: string) => void;
 };
 
 export function StoryList({
   category,
+  sort,
   stories,
+  disabled = false,
   selectedStoryId,
   onSelectStory
 }: StoryListProps) {
+  const heading = category === "all" ? "All Stories" : getCategoryLabel(category);
+  const sortLabel =
+    sort === "publishedAt"
+      ? "published date"
+      : sort === "syncedAt"
+      ? "synced time"
+      : "virality score";
+
   return (
     <Card className="rounded-[1.75rem] bg-card/90 shadow-sm backdrop-blur">
       <CardHeader>
-        <CardTitle className="text-2xl font-black">
-          {category === "movies" ? "Movie Trends" : "News Radar"}
-        </CardTitle>
+        <CardTitle className="text-2xl font-black">{heading}</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Sorted by {sortLabel}.
+        </p>
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-[70vh] pr-4">
@@ -40,21 +54,36 @@ export function StoryList({
               <button
                 key={story.id}
                 type="button"
+                disabled={disabled}
                 onClick={() => onSelectStory(story.id)}
                 className={cn(
                   "w-full rounded-3xl border p-4 text-left transition hover:border-primary/40 hover:bg-secondary/30",
+                  disabled && "cursor-wait opacity-70",
                   selectedStoryId === story.id
                     ? "border-primary/60 bg-primary/5 shadow-sm"
                     : "bg-white/70"
                 )}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <Badge variant="secondary" className="rounded-full">
-                    {story.metadata.source}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {formatDistanceToNowStrict(story.inserted_at)}
-                  </span>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary" className="rounded-full">
+                      {story.metadata.source}
+                    </Badge>
+                    <Badge variant="outline" className="rounded-full">
+                      {getCategoryLabel(story.category)}
+                    </Badge>
+                  </div>
+                  <div className="shrink-0 text-right text-xs text-muted-foreground">
+                    <div>
+                      Published{" "}
+                      {formatDistanceToNowStrict(
+                        story.metadata.publishedAt ?? story.inserted_at
+                      )}
+                    </div>
+                    <div>
+                      Added {formatDistanceToNowStrict(story.inserted_at)}
+                    </div>
+                  </div>
                 </div>
                 <h3 className="mt-3 text-base font-extrabold leading-snug">
                   {story.title}
@@ -68,7 +97,7 @@ export function StoryList({
                   </p>
                 ) : null}
                 <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Virality score: {story.virality_score.toFixed(1)}</span>
+                  <span>Virality: {Math.round(story.virality_score)}</span>
                   <span>{story.metadata.feedLabel}</span>
                 </div>
               </button>

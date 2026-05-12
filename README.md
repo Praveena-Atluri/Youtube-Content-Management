@@ -1,27 +1,25 @@
-# Telugu Media Content Scout
+# Media Radar
 
-A Next.js 15 dashboard for scouting Telugu trends, deduplicating them with `pgvector`, and generating video-ready Telugu content packs.
+A Next.js 15 dashboard for scouting Telugu trends, deduplicating them by source URL, and generating creator-ready outputs through a Gemini Gem workflow.
 
 ## Stack
 
 - Next.js 15 App Router
 - Shadcn-style UI components
-- Supabase Postgres + `pgvector`
+- Supabase Postgres
 - Supabase Edge Function for feed ingestion
-- OpenAI for embeddings and Telugu script generation
+- Gemini Gem handoff for script generation
 
 ## Features
 
-- Sidebar dashboard with a category dropdown for `News` and `Movies`
-- RSS ingestion from Telugu and tech feeds
-- Embedding-based duplicate detection using a Supabase SQL RPC
-- Unique story listing sorted by virality
-- One-click generation for:
-  - Telugu 5-minute long-form script
-  - Telugu 60-second short script
-  - 3 suggested titles
-  - 1 SEO description
-  - Content plan based on trend intensity
+- Sidebar dashboard with `All`, `News`, `Movies`, and `Tech`
+- Sorting by `Virality Score`, `Published`, or `Synced Time`
+- RSS ingestion from Telugu news feeds and dedicated tech feeds
+- Feed sources managed in Supabase through a `feed_sources` table
+- Source URL-based duplicate detection
+- Unique story listing limited to the last 24 hours
+- Automatic cleanup of stories whose sync time is older than 24 hours
+- Gemini Gem handoff for both video and web story creation
 
 ## Local setup
 
@@ -37,9 +35,11 @@ npm install
 cp .env.example .env.local
 ```
 
-3. Add your Supabase and OpenAI credentials.
+3. Add your Supabase credentials.
+   Optional:
+   set `MOVIE_KEYWORDS` as a comma-separated or newline-separated list if you want to override the default movie keyword set.
 
-4. Apply the migration in Supabase:
+4. Apply the migrations in Supabase:
 
 ```bash
 supabase db push
@@ -53,18 +53,12 @@ npm run dev
 
 ## Deploy to Supabase
 
-1. Create a Supabase project and enable the `vector` extension.
-2. Run the SQL migration in [supabase/migrations/20260511140500_init_trending_topics.sql](/Users/praveena.atluri/Documents/youtube-content-management/supabase/migrations/20260511140500_init_trending_topics.sql:1).
+1. Create a Supabase project.
+2. Run the SQL migrations in order from [supabase/migrations](/Users/praveena.atluri/Documents/youtube-content-management/supabase/migrations:1).
 3. Deploy the edge function:
 
 ```bash
 supabase functions deploy sync-feeds --no-verify-jwt
-```
-
-4. Add secrets:
-
-```bash
-supabase secrets set OPENAI_API_KEY=... OPENAI_EMBED_MODEL=text-embedding-3-small
 ```
 
 ## Deploy to Vercel
@@ -75,5 +69,9 @@ supabase secrets set OPENAI_API_KEY=... OPENAI_EMBED_MODEL=text-embedding-3-smal
 
 ## Notes
 
-- Because the requested category model is only `news | movies`, tech stories are ingested under `news` unless movie-related keywords are detected.
-- The duplicate filter uses a cosine similarity threshold of `0.92`, which you can tune in [lib/sync-feeds.ts](/Users/praveena.atluri/Documents/youtube-content-management/lib/sync-feeds.ts:62).
+- Active categories are `news`, `movies`, and `tech`.
+- Active feed sources are loaded from `public.feed_sources` in Supabase.
+- Movie classification is keyword-based and can be overridden with `MOVIE_KEYWORDS`.
+- Movie classification also checks the resolved source/article URL.
+- Any non-tech story that does not match movie keywords falls back to `news`.
+- Duplicate detection is based on normalized source URLs.

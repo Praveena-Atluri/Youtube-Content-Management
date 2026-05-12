@@ -1,4 +1,7 @@
-export type TrendingCategory = "news" | "movies";
+export type TrendingCategory = "news" | "movies" | "tech";
+
+export type CategoryFilter = TrendingCategory | "all";
+export type StorySortOption = "virality" | "publishedAt" | "syncedAt";
 
 export type StoryRecord = {
   id: string;
@@ -16,32 +19,23 @@ export type StoryRecord = {
   inserted_at: string;
 };
 
-export type VideoOutput = {
-  script: string;
-  suggestedTitles: string[];
-  description: string;
-  keywords: string[];
-  thumbnailTextSuggestions: string[];
-};
-
-export type WebStoryOutput = {
-  script: string;
-  suggestedTitles: string[];
-  description: string;
-  keywords: string[];
-  urlSuggestions: string[];
-};
-
-export type GeneratedBundle = {
-  video?: VideoOutput;
-  webStory?: WebStoryOutput;
-};
-
-export type GenerationMode = "video" | "webStory";
-
 export type FeedDefinition = {
   categoryHint: TrendingCategory;
   label: string;
   source: string;
   url: string;
 };
+
+export const CATEGORY_OPTIONS: Array<{
+  label: string;
+  value: CategoryFilter;
+}> = [
+  { label: "All", value: "all" },
+  { label: "News", value: "news" },
+  { label: "Movies", value: "movies" },
+  { label: "Tech", value: "tech" }
+];
+
+export function getCategoryLabel(category: CategoryFilter) {
+  return CATEGORY_OPTIONS.find((option) => option.value === category)?.label ?? category;
+}
