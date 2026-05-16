@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNowStrict } from "@/lib/date";
-import { getCategoryLabel } from "@/lib/types";
+import { categoryLabel } from "@/lib/types";
 import type { CategoryFilter, StorySortOption, StoryRecord } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +25,7 @@ export function StoryList({
   selectedStoryId,
   onSelectStory
 }: StoryListProps) {
-  const heading = category === "all" ? "All Stories" : getCategoryLabel(category);
+  const heading = category === "all" ? "All Stories" : categoryLabel(category);
   const sortLabel =
     sort === "publishedAt"
       ? "published date"
@@ -34,7 +34,7 @@ export function StoryList({
       : "virality score";
 
   return (
-    <Card className="rounded-[1.75rem] bg-card/90 shadow-sm backdrop-blur">
+    <Card className="rounded-[1.75rem] bg-card/90 dark:bg-card shadow-sm backdrop-blur">
       <CardHeader>
         <CardTitle className="text-2xl font-black">{heading}</CardTitle>
         <p className="text-sm text-muted-foreground">
@@ -60,17 +60,17 @@ export function StoryList({
                   "w-full rounded-3xl border p-4 text-left transition hover:border-primary/40 hover:bg-secondary/30",
                   disabled && "cursor-wait opacity-70",
                   selectedStoryId === story.id
-                    ? "border-primary/60 bg-primary/5 shadow-sm"
-                    : "bg-white/70"
+                    ? "border-primary/60 bg-primary/10 shadow-sm"
+                    : "bg-card/60"
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="secondary" className="rounded-full">
-                      {story.metadata.source}
+                      {story.metadata.feedLabel}
                     </Badge>
                     <Badge variant="outline" className="rounded-full">
-                      {getCategoryLabel(story.category)}
+                      {categoryLabel(story.category)}
                     </Badge>
                   </div>
                   <div className="shrink-0 text-right text-xs text-muted-foreground">

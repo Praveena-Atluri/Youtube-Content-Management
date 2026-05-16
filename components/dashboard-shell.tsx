@@ -1,14 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { LoaderCircle, Newspaper, RefreshCcw, Sparkles, Video } from "lucide-react";
+import { LoaderCircle, Newspaper, RefreshCcw } from "lucide-react";
 import type { Route } from "next";
+import Image from "next/image";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
+import { ThemeToggle } from "@/components/theme-toggle";
 
 import { formatDistanceToNowStrict } from "@/lib/date";
 import {
-  CATEGORY_OPTIONS,
-  getCategoryLabel
+  buildCategoryOptions,
+  categoryLabel
 } from "@/lib/types";
 import type {
   CategoryFilter,
@@ -29,6 +33,7 @@ import {
 } from "@/components/ui/select";
 
 type DashboardShellProps = {
+  activeCategories: CategoryFilter[];
   category: CategoryFilter;
   sort: StorySortOption;
   stories: StoryRecord[];
@@ -36,6 +41,7 @@ type DashboardShellProps = {
 };
 
 export function DashboardShell({
+  activeCategories,
   category,
   sort,
   stories,
@@ -48,7 +54,7 @@ export function DashboardShell({
   const [isSyncing, startSyncTransition] = useTransition();
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
-  const selectedLabel = getCategoryLabel(category);
+  const selectedLabel = categoryLabel(category);
   const creatorHint = selectedStory
     ? "Story selected. Open a Gem on the right to generate your script."
     : "Select a story to generate video or web story scripts.";
@@ -97,6 +103,11 @@ export function DashboardShell({
         error?: string;
       };
 
+      if (response.status === 409) {
+        setSyncMessage("Sync already in progress, please wait.");
+        return;
+      }
+
       if (!response.ok) {
         setSyncMessage(payload.error ?? "Sync failed.");
         return;
@@ -111,11 +122,25 @@ export function DashboardShell({
 
   return (
     <div className="grid min-h-[calc(100vh-2rem)] gap-4 lg:grid-cols-[300px_1fr]">
-      <aside className="rounded-[1.75rem] border bg-card/85 p-4 shadow-sm backdrop-blur">
+      <aside className="rounded-[1.75rem] border bg-card/90 dark:bg-card p-4 shadow-sm backdrop-blur">
+        <div className="mb-4 flex items-center justify-between">
+          <Link
+            href="/"
+            className="rounded-2xl border bg-card px-3 py-1.5 text-sm font-semibold transition hover:bg-secondary/50"
+          >
+            ← Home
+          </Link>
+          <ThemeToggle />
+        </div>
+
         <div className="flex items-center gap-3 rounded-2xl bg-secondary/70 p-4">
-          <div className="rounded-2xl bg-primary/10 p-3 text-primary">
-            <Sparkles className="size-6" />
-          </div>
+          <Image
+            src="/app-icon.png"
+            alt="Media Radar"
+            width={48}
+            height={48}
+            className="rounded-2xl"
+          />
           <div>
             <h1 className="text-xl font-extrabold">Media Radar</h1>
             <p className="text-sm text-muted-foreground">
@@ -143,7 +168,7 @@ export function DashboardShell({
                   <SelectValue placeholder="Choose a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {CATEGORY_OPTIONS.map((option) => (
+                  {buildCategoryOptions(activeCategories).map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
@@ -179,7 +204,7 @@ export function DashboardShell({
             </CardContent>
           </Card>
 
-          <Card className="rounded-3xl border-0 bg-gradient-to-br from-amber-100 via-white to-emerald-100 shadow-sm">
+          <Card className="rounded-3xl border-0 bg-gradient-to-br from-amber-100 via-card to-emerald-100 dark:from-amber-900/30 dark:via-card dark:to-emerald-900/20 shadow-sm">
             <CardContent className="space-y-3 p-5">
               <Badge className="rounded-full bg-card text-foreground hover:bg-card">
                 {selectedLabel}
@@ -224,13 +249,13 @@ export function DashboardShell({
 
             <div className="rounded-3xl border bg-card/90 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold">
-                <Video className="size-4 text-primary" />
                 Creator Status
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
                 {creatorHint}
               </p>
             </div>
+
           </div>
         </div>
       </aside>
@@ -244,7 +269,7 @@ export function DashboardShell({
           selectedStoryId={selectedStory?.id ?? null}
           onSelectStory={(storyId) => updateParams(category, sort, storyId)}
         />
-        <StoryGenerator story={selectedStory} />
+        <StoryGenerator story={selectedStory} isLoading={isNavigating} />
       </section>
     </div>
   );

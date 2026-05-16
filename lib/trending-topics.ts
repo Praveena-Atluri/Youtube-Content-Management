@@ -14,7 +14,7 @@ type RawStoryRecord = Omit<StoryRecord, "category"> & {
 };
 
 function normalizeCategory(category: string): TrendingCategory {
-  if (category === "movies" || category === "tech") {
+  if (category === "movies" || category === "tech" || category === "sports") {
     return category;
   }
 

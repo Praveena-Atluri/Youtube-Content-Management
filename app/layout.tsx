@@ -3,6 +3,7 @@ import { Manrope, Noto_Sans_Telugu } from "next/font/google";
 
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const headingFont = Manrope({
   subsets: ["latin"],
@@ -25,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={cn(
           headingFont.variable,
@@ -33,7 +34,7 @@ export default function RootLayout({
           "min-h-screen font-[var(--font-heading)]"
         )}
       >
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

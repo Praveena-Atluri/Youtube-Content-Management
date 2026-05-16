@@ -1,4 +1,4 @@
-export type TrendingCategory = "news" | "movies" | "tech";
+export type TrendingCategory = "news" | "movies" | "tech" | "sports";
 
 export type CategoryFilter = TrendingCategory | "all";
 export type StorySortOption = "virality" | "publishedAt" | "syncedAt";
@@ -26,16 +26,10 @@ export type FeedDefinition = {
   url: string;
 };
 
-export const CATEGORY_OPTIONS: Array<{
-  label: string;
-  value: CategoryFilter;
-}> = [
-  { label: "All", value: "all" },
-  { label: "News", value: "news" },
-  { label: "Movies", value: "movies" },
-  { label: "Tech", value: "tech" }
-];
+export function categoryLabel(value: CategoryFilter) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
 
-export function getCategoryLabel(category: CategoryFilter) {
-  return CATEGORY_OPTIONS.find((option) => option.value === category)?.label ?? category;
+export function buildCategoryOptions(activeCategories: CategoryFilter[]) {
+  return activeCategories.map((value) => ({ label: categoryLabel(value), value }));
 }

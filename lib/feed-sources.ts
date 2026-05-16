@@ -1,5 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase";
-import type { FeedDefinition } from "@/lib/types";
+import type { CategoryFilter, FeedDefinition, TrendingCategory } from "@/lib/types";
 
 export const DEFAULT_FEED_SOURCES: FeedDefinition[] = [
   {
@@ -22,7 +22,7 @@ export const DEFAULT_FEED_SOURCES: FeedDefinition[] = [
   },
   {
     source: "Google News Telugu",
-    label: "Google News Telugu",
+    label: "Google News",
     url: "https://news.google.com/rss?hl=te&gl=IN&ceid=IN:te",
     categoryHint: "news"
   },
@@ -101,6 +101,26 @@ type FeedSourceRow = {
   category_hint: string;
 };
 
+export async function getActiveCategories(): Promise<CategoryFilter[]> {
+  const supabase = createSupabaseAdminClient();
+  const response = await supabase
+    .from("feed_sources")
+    .select("category_hint")
+    .eq("active", true);
+
+  if (response.error || !response.data) {
+    return ["all", "news"];
+  }
+
+  const hints = [...new Set(response.data.map((r) => r.category_hint as string))];
+  const valid = hints.filter((h): h is TrendingCategory =>
+    ["news", "movies", "tech", "sports"].includes(h)
+  );
+  valid.sort();
+
+  return ["all", ...valid] as CategoryFilter[];
+}
+
 export async function getActiveFeedSources(): Promise<FeedDefinition[]> {
   const supabase = createSupabaseAdminClient();
   const response = await supabase
@@ -125,8 +145,8 @@ export async function getActiveFeedSources(): Promise<FeedDefinition[]> {
     label: row.label,
     url: row.url,
     categoryHint:
-      row.category_hint === "tech" || row.category_hint === "movies"
-        ? row.category_hint
+      (["tech", "movies", "sports"] as string[]).includes(row.category_hint)
+        ? (row.category_hint as TrendingCategory)
         : "news"
   }));
 }

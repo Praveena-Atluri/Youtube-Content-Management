@@ -1,5 +1,6 @@
 import { getActiveFeedSources } from "@/lib/feed-sources";
 import { getMovieKeywords } from "@/lib/movie-keywords";
+import { getSportsKeywords } from "@/lib/sports-keywords";
 import { fetchFeedItems } from "@/lib/rss";
 import { resolveArticleUrl } from "@/lib/source-url";
 import { createSupabaseAdminClient } from "@/lib/supabase";
@@ -50,7 +51,8 @@ function inferTaxonomy(
   text: string,
   articleUrl: string,
   fallback: TrendingCategory,
-  movieKeywords: string[]
+  movieKeywords: string[],
+  sportsKeywords: string[]
 ): {
   category: TrendingCategory;
 } {
@@ -69,6 +71,18 @@ function inferTaxonomy(
 
   if (fallback === "tech") {
     return { category: "tech" };
+  }
+
+  if (fallback === "movies") {
+    return { category: "movies" };
+  }
+
+  if (fallback === "sports") {
+    return { category: "sports" };
+  }
+
+  if (includesAny(sportsKeywords)) {
+    return { category: "sports" };
   }
 
   if (includesAny(movieKeywords)) {
@@ -120,16 +134,22 @@ async function deleteStaleStories() {
   return count ?? 0;
 }
 
+function normalizeTitle(title: string) {
+  return title.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 export async function syncFeeds() {
   const supabase = createSupabaseAdminClient();
   const feedSources = await getActiveFeedSources();
   const movieKeywords = getMovieKeywords();
+  const sportsKeywords = getSportsKeywords();
   const deleted = await deleteStaleStories();
   const existingLinks = new Set<string>();
+  const existingTitles = new Set<string>();
 
   const existingStories = await supabase
     .from("trending_topics")
-    .select("metadata")
+    .select("title, metadata")
     .limit(1000);
 
   if (existingStories.error) {
@@ -151,72 +171,128 @@ export async function syncFeeds() {
     if (link) {
       existingLinks.add(link);
     }
+
+    if (story && typeof story === "object" && "title" in story && typeof story.title === "string" && story.title) {
+      existingTitles.add(normalizeTitle(story.title));
+    }
   }
 
   let inserted = 0;
   let skipped = 0;
   const errors: string[] = [];
 
-  for (const feed of feedSources) {
-    try {
+  type ResolvedItem = {
+    feed: (typeof feedSources)[number];
+    title: string;
+    summary: string;
+    contentBody: string;
+    articleUrl: string;
+    publishedAt: string;
+  };
+
+  // Fetch all feeds and resolve all URLs concurrently
+  const feedResults = await Promise.allSettled(
+    feedSources.map(async (feed) => {
       const items = await fetchFeedItems(feed.url, feed.source);
+      const recentItems = items
+        .slice(0, 30)
+        .filter((item) => isWithinLast24Hours(item.publishedAt));
 
-      for (const item of items.slice(0, 30)) {
-        if (!isWithinLast24Hours(item.publishedAt)) {
-          skipped += 1;
-          continue;
-        }
-
-        const articleUrl = canonicalizeArticleUrl(
-          await resolveArticleUrl(feed.source, item.link)
-        );
-
-        const taxonomy = inferTaxonomy(
-          `${item.title} ${item.summary} ${item.contentBody}`,
-          articleUrl,
-          feed.categoryHint,
-          movieKeywords
-        );
-
-        if (articleUrl && existingLinks.has(articleUrl)) {
-          skipped += 1;
-          continue;
-        }
-
-        const viralityScore = calculateViralityScore({
-          publishedAt: item.publishedAt,
-          source: feed.source,
-          summary: item.summary
-        });
-
-        const insertResult = await supabase.from("trending_topics").insert({
-          category: taxonomy.category,
-          title: item.title,
-          summary: item.summary,
-          content_body: item.contentBody,
-          virality_score: viralityScore,
-          metadata: {
-            source: feed.source,
-            feedLabel: feed.label,
-            link: articleUrl,
+      const resolved = await Promise.allSettled(
+        recentItems.map(async (item) => {
+          const articleUrl = canonicalizeArticleUrl(
+            await resolveArticleUrl(feed.source, item.link)
+          );
+          return {
+            feed,
+            title: item.title,
+            summary: item.summary,
+            contentBody: item.contentBody,
+            articleUrl,
             publishedAt: item.publishedAt
-          }
-        });
+          } satisfies ResolvedItem;
+        })
+      );
 
-        if (insertResult.error) {
-          throw insertResult.error;
-        }
+      return { feed, resolved };
+    })
+  );
 
-        if (articleUrl) {
-          existingLinks.add(articleUrl);
-        }
-
-        inserted += 1;
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown sync error";
-      errors.push(`${feed.source}: ${message}`);
+  // Collect all resolved items, recording per-feed fetch errors
+  const candidates: ResolvedItem[] = [];
+  for (const feedResult of feedResults) {
+    if (feedResult.status === "rejected") {
+      errors.push(`Feed fetch failed: ${feedResult.reason instanceof Error ? feedResult.reason.message : String(feedResult.reason)}`);
+      continue;
     }
+    for (const itemResult of feedResult.value.resolved) {
+      if (itemResult.status === "rejected") {
+        errors.push(`${feedResult.value.feed.source}: ${itemResult.reason instanceof Error ? itemResult.reason.message : String(itemResult.reason)}`);
+      } else {
+        candidates.push(itemResult.value);
+      }
+    }
+  }
+
+  // Dedup and insert sequentially to keep existingLinks/existingTitles consistent
+  for (const candidate of candidates) {
+    if (candidate.articleUrl && existingLinks.has(candidate.articleUrl)) {
+      skipped += 1;
+      continue;
+    }
+
+    const titleKey = normalizeTitle(candidate.title);
+    if (titleKey && existingTitles.has(titleKey)) {
+      skipped += 1;
+      continue;
+    }
+
+    const taxonomy = inferTaxonomy(
+      `${candidate.title} ${candidate.summary} ${candidate.contentBody}`,
+      candidate.articleUrl,
+      candidate.feed.categoryHint,
+      movieKeywords,
+      sportsKeywords
+    );
+
+    const viralityScore = calculateViralityScore({
+      publishedAt: candidate.publishedAt,
+      source: candidate.feed.source,
+      summary: candidate.summary
+    });
+
+    const insertResult = await supabase.from("trending_topics").insert({
+      category: taxonomy.category,
+      title: candidate.title,
+      summary: candidate.summary,
+      content_body: candidate.contentBody,
+      virality_score: viralityScore,
+      metadata: {
+        source: candidate.feed.source,
+        feedLabel: candidate.feed.label,
+        link: candidate.articleUrl,
+        publishedAt: candidate.publishedAt
+      }
+    });
+
+    if (insertResult.error) {
+      // unique constraint violation — another concurrent sync already inserted this URL
+      if (insertResult.error.code === "23505") {
+        skipped += 1;
+        continue;
+      }
+      errors.push(`${candidate.feed.source}: ${insertResult.error.message}`);
+      continue;
+    }
+
+    if (candidate.articleUrl) {
+      existingLinks.add(candidate.articleUrl);
+    }
+    if (titleKey) {
+      existingTitles.add(titleKey);
+    }
+
+    inserted += 1;
   }
 
   return { inserted, skipped, deleted, errors };

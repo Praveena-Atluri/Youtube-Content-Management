@@ -12,6 +12,8 @@ export function getEnv() {
     supabaseUrl: requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
     supabaseAnonKey: requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
     supabaseServiceRoleKey: requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
-    movieKeywords: process.env.MOVIE_KEYWORDS ?? ""
+    movieKeywords: process.env.MOVIE_KEYWORDS ?? "",
+    sportsKeywords: process.env.SPORTS_KEYWORDS ?? "",
+    youtubeApiKey: process.env.YOUTUBE_API_KEY ?? ""
   };
 }
