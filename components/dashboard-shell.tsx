@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { LoaderCircle, Newspaper, RefreshCcw, Rss, Zap, Globe } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
@@ -32,6 +32,14 @@ import {
   SelectValue
 } from "@/components/ui/select";
 
+const SYNC_STAGES = [
+  { icon: Globe,      text: "Connecting to sources…",      sub: "Reaching out to your feeds" },
+  { icon: Rss,        text: "Fetching latest articles…",   sub: "Pulling in fresh content" },
+  { icon: Zap,        text: "Sorting by latest sync time…", sub: "Newest arrivals first" },
+  { icon: Newspaper,  text: "Organising your feed…",       sub: "Sorting and categorising" },
+  { icon: RefreshCcw, text: "Almost done…",                sub: "Putting it all together" },
+];
+
 type DashboardShellProps = {
   activeCategories: CategoryFilter[];
   category: CategoryFilter;
@@ -45,7 +53,7 @@ export function DashboardShell({
   category,
   sort,
   stories,
-  selectedStory
+  selectedStory: initialSelectedStory
 }: DashboardShellProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -53,6 +61,7 @@ export function DashboardShell({
   const [isNavigating, startNavigationTransition] = useTransition();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [selectedStory, setSelectedStory] = useState<StoryRecord | null>(initialSelectedStory);
 
   const selectedLabel = categoryLabel(category);
 
@@ -69,19 +78,12 @@ export function DashboardShell({
   const updateParams = (
     nextCategory: CategoryFilter,
     nextSort?: StorySortOption,
-    storyId?: string
   ) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("category", nextCategory);
     params.delete("subcategory");
-
+    params.delete("storyId");
     params.set("sort", nextSort ?? sort);
-
-    if (storyId) {
-      params.set("storyId", storyId);
-    } else {
-      params.delete("storyId");
-    }
 
     const href = `${pathname}?${params.toString()}` as Route;
     startNavigationTransition(() => {
@@ -91,7 +93,12 @@ export function DashboardShell({
 
   const handleSync = async () => {
     setIsSyncing(true);
+    setSyncStage(0);
     setSyncMessage(null);
+
+    syncIntervalRef.current = setInterval(() => {
+      setSyncStage((s) => Math.min(s + 1, SYNC_STAGES.length - 1));
+    }, 5000);
 
     try {
       const response = await fetch("/api/sync", { method: "POST" });
@@ -117,30 +124,22 @@ export function DashboardShell({
       );
       router.refresh();
     } finally {
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+        syncIntervalRef.current = null;
+      }
       setIsSyncing(false);
+      setSyncStage(0);
     }
   };
 
-  const SYNC_STAGES = [
-    { icon: Globe,      text: "Connecting to sources…",       sub: "Reaching out to your feeds" },
-    { icon: Rss,        text: "Fetching latest articles…",    sub: "Pulling in fresh content" },
-    { icon: Zap,        text: "Sorting by latest sync time…",  sub: "Newest arrivals first" },
-    { icon: Newspaper,  text: "Organising your feed…",        sub: "Sorting and categorising" },
-    { icon: RefreshCcw, text: "Almost done…",                 sub: "Putting it all together" },
-  ];
 
   const [syncStage, setSyncStage] = useState(0);
+  const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (!isSyncing) {
-      setSyncStage(0);
-      return;
-    }
-    const interval = setInterval(() => {
-      setSyncStage((s) => Math.min(s + 1, SYNC_STAGES.length - 1));
-    }, 2500);
-    return () => clearInterval(interval);
-  }, [isSyncing]);
+    setSelectedStory(stories[0] ?? null);
+  }, [stories]);
 
   if (isSyncing) {
     const stage = SYNC_STAGES[syncStage];
@@ -317,7 +316,7 @@ export function DashboardShell({
           stories={stories}
           disabled={isNavigating}
           selectedStoryId={selectedStory?.id ?? null}
-          onSelectStory={(storyId) => updateParams(category, sort, storyId)}
+          onSelectStory={(storyId) => setSelectedStory(stories.find((s) => s.id === storyId) ?? null)}
         />
         <StoryGenerator story={selectedStory} isLoading={isNavigating} />
       </section>
