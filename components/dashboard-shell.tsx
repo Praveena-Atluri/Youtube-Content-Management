@@ -51,7 +51,7 @@ export function DashboardShell({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isNavigating, startNavigationTransition] = useTransition();
-  const [isSyncing, startSyncTransition] = useTransition();
+  const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   const selectedLabel = categoryLabel(category);
@@ -91,10 +91,11 @@ export function DashboardShell({
     });
   };
 
-  const handleSync = () => {
-    startSyncTransition(async () => {
-      setSyncMessage(null);
+  const handleSync = async () => {
+    setIsSyncing(true);
+    setSyncMessage(null);
 
+    try {
       const response = await fetch("/api/sync", { method: "POST" });
       const payload = (await response.json()) as {
         inserted?: number;
@@ -117,7 +118,9 @@ export function DashboardShell({
         `Sync complete: ${payload.inserted ?? 0} new stories, ${payload.skipped ?? 0} duplicate URLs skipped, ${payload.deleted ?? 0} stale stories deleted.`
       );
       router.refresh();
-    });
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const SYNC_STAGES = [
@@ -194,8 +197,8 @@ export function DashboardShell({
           <Image
             src="/app-icon.png"
             alt="Media Radar"
-            width={48}
-            height={48}
+            width={72}
+            height={72}
             className="rounded-2xl"
           />
           <div>

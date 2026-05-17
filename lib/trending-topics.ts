@@ -21,7 +21,7 @@ function normalizeCategory(category: string): TrendingCategory {
 }
 
 function isWithinLast24Hours(story: StoryRecord) {
-  const publishedAt = story.metadata.publishedAt ?? story.inserted_at;
+  const publishedAt = story.metadata.publishedAt || story.inserted_at;
   const publishedTime = new Date(publishedAt).getTime();
 
   if (Number.isNaN(publishedTime)) {
@@ -70,13 +70,12 @@ export async function getStories(
 
   filteredStories.sort((left, right) => {
     if (sort === "publishedAt") {
-      const leftTime = new Date(
-        left.metadata.publishedAt ?? left.inserted_at
-      ).getTime();
-      const rightTime = new Date(
-        right.metadata.publishedAt ?? right.inserted_at
-      ).getTime();
-
+      const leftHasDate = Boolean(left.metadata.publishedAt);
+      const rightHasDate = Boolean(right.metadata.publishedAt);
+      if (leftHasDate && !rightHasDate) return -1;
+      if (!leftHasDate && rightHasDate) return 1;
+      const leftTime = new Date(left.metadata.publishedAt || left.inserted_at).getTime();
+      const rightTime = new Date(right.metadata.publishedAt || right.inserted_at).getTime();
       return rightTime - leftTime;
     }
 

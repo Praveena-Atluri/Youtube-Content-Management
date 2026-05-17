@@ -111,7 +111,7 @@ export async function fetchFeedItems(
           item.contentSnippet?.trim() ?? item.summary?.trim() ?? stripHtml(rawHtml) ?? "",
         contentBody: stripHtml(rawHtml) ?? item.contentSnippet?.trim() ?? "",
         link: extractedArticleUrl || item.link?.trim() || "",
-        publishedAt: item.isoDate ?? item.pubDate ?? new Date().toISOString()
+        publishedAt: item.isoDate ?? item.pubDate ?? ""
       };
     })
     .filter((item) => item.title && item.summary);

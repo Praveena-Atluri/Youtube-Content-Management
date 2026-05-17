@@ -42,7 +42,7 @@ export function StoryList({
         </p>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[70vh] pr-4">
+        <ScrollArea key={`${category}-${sort}`} className="h-[70vh] pr-4">
           <div className="space-y-3">
             {stories.length === 0 ? (
               <div className="rounded-3xl border border-dashed bg-muted/40 p-6 text-sm text-muted-foreground">
@@ -76,9 +76,9 @@ export function StoryList({
                   <div className="shrink-0 text-right text-xs text-muted-foreground">
                     <div>
                       Published{" "}
-                      {formatDistanceToNowStrict(
-                        story.metadata.publishedAt ?? story.inserted_at
-                      )}
+                      {story.metadata.publishedAt
+                        ? formatDistanceToNowStrict(story.metadata.publishedAt)
+                        : "N/A"}
                     </div>
                     <div>
                       Added {formatDistanceToNowStrict(story.inserted_at)}
