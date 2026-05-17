@@ -1,4 +1,4 @@
-export type TrendingCategory = "news" | "movies" | "tech" | "sports";
+export type TrendingCategory = "news" | "movies" | "tech" | "sports" | "business";
 
 export type CategoryFilter = TrendingCategory | "all";
 export type StorySortOption = "virality" | "publishedAt" | "syncedAt";

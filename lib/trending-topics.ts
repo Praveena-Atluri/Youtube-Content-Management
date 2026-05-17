@@ -1,4 +1,3 @@
-import { normalizeStorySourceUrl } from "@/lib/source-url";
 import type { PostgrestSingleResponse } from "@supabase/supabase-js";
 
 import { createSupabaseAdminClient } from "@/lib/supabase";
@@ -14,7 +13,7 @@ type RawStoryRecord = Omit<StoryRecord, "category"> & {
 };
 
 function normalizeCategory(category: string): TrendingCategory {
-  if (category === "movies" || category === "tech" || category === "sports") {
+  if (category === "movies" || category === "tech" || category === "sports" || category === "business") {
     return category;
   }
 
@@ -57,8 +56,7 @@ export async function getStories(
     category: normalizeCategory(story.category)
   }));
 
-  const stories = await Promise.all(normalizedStories.map(normalizeStorySourceUrl));
-  const filteredStories = stories.filter((story) => {
+  const filteredStories = normalizedStories.filter((story) => {
     if (!isWithinLast24Hours(story)) {
       return false;
     }
@@ -83,9 +81,10 @@ export async function getStories(
     }
 
     if (sort === "syncedAt") {
-      return (
-        new Date(right.inserted_at).getTime() - new Date(left.inserted_at).getTime()
-      );
+      const syncDiff =
+        new Date(right.inserted_at).getTime() - new Date(left.inserted_at).getTime();
+      if (syncDiff !== 0) return syncDiff;
+      return right.virality_score - left.virality_score;
     }
 
     if (right.virality_score !== left.virality_score) {
@@ -97,7 +96,7 @@ export async function getStories(
     );
   });
 
-  return filteredStories.slice(0, 300);
+  return filteredStories.slice(0, 1000);
 }
 
 export async function getStoryById(storyId: string): Promise<StoryRecord | null> {
@@ -129,5 +128,5 @@ export async function getStoryById(storyId: string): Promise<StoryRecord | null>
     return null;
   }
 
-  return normalizeStorySourceUrl(story);
+  return story;
 }

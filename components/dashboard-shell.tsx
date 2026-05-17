@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { LoaderCircle, Newspaper, RefreshCcw } from "lucide-react";
+import { useState, useTransition, useEffect } from "react";
+import { LoaderCircle, Newspaper, RefreshCcw, Rss, Zap, Globe } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -120,6 +120,63 @@ export function DashboardShell({
     });
   };
 
+  const SYNC_STAGES = [
+    { icon: Globe,      text: "Connecting to sources…",       sub: "Reaching out to your feeds" },
+    { icon: Rss,        text: "Fetching latest articles…",    sub: "Pulling in fresh content" },
+    { icon: Zap,        text: "Sorting by latest sync time…",  sub: "Newest arrivals first" },
+    { icon: Newspaper,  text: "Organising your feed…",        sub: "Sorting and categorising" },
+    { icon: RefreshCcw, text: "Almost done…",                 sub: "Putting it all together" },
+  ];
+
+  const [syncStage, setSyncStage] = useState(0);
+
+  useEffect(() => {
+    if (!isSyncing) {
+      setSyncStage(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setSyncStage((s) => Math.min(s + 1, SYNC_STAGES.length - 1));
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [isSyncing]);
+
+  if (isSyncing) {
+    const stage = SYNC_STAGES[syncStage];
+    const StageIcon = stage.icon;
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-background/95 backdrop-blur">
+        <div className="relative flex items-center justify-center">
+          <div className="absolute size-40 animate-ping rounded-full bg-primary/5" />
+          <div className="absolute size-32 animate-pulse rounded-full bg-primary/10" />
+          <div className="absolute size-24 animate-spin rounded-full border-4 border-primary/20 border-t-primary/60" style={{ animationDuration: "1.5s" }} />
+          <div className="absolute size-16 animate-spin rounded-full border-4 border-primary/10 border-b-primary/40" style={{ animationDuration: "2.5s", animationDirection: "reverse" }} />
+          <div className="relative rounded-2xl bg-primary/10 p-4">
+            <StageIcon className="size-8 animate-bounce text-primary" />
+          </div>
+        </div>
+
+        <div className="space-y-2 text-center">
+          <p className="text-2xl font-black transition-all duration-500">{stage.text}</p>
+          <p className="text-sm text-muted-foreground transition-all duration-500">{stage.sub}</p>
+        </div>
+
+        <div className="flex gap-2">
+          {SYNC_STAGES.map((_, i) => (
+            <span
+              key={i}
+              className={`rounded-full transition-all duration-500 ${
+                i < syncStage ? "size-2.5 bg-primary" :
+                i === syncStage ? "size-3 bg-primary animate-pulse" :
+                "size-2.5 bg-primary/20"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="grid min-h-[calc(100vh-2rem)] gap-4 lg:grid-cols-[300px_1fr]">
       <aside className="rounded-[1.75rem] border bg-card/90 dark:bg-card p-4 shadow-sm backdrop-blur">
@@ -144,7 +201,7 @@ export function DashboardShell({
           <div>
             <h1 className="text-xl font-extrabold">Media Radar</h1>
             <p className="text-sm text-muted-foreground">
-              Track fresh stories across news, movies, and tech.
+              Track fresh stories across news, movies, sports, business and tech.
             </p>
           </div>
         </div>
@@ -162,7 +219,7 @@ export function DashboardShell({
                 onValueChange={(value: CategoryFilter) =>
                   updateParams(value, sort)
                 }
-                disabled={isNavigating}
+                disabled={isNavigating || isSyncing}
               >
                 <SelectTrigger className="h-12 rounded-2xl border bg-card">
                   <SelectValue placeholder="Choose a category" />
@@ -190,7 +247,7 @@ export function DashboardShell({
                 onValueChange={(value: StorySortOption) =>
                   updateParams(category, value)
                 }
-                disabled={isNavigating}
+                disabled={isNavigating || isSyncing}
               >
                 <SelectTrigger className="h-12 rounded-2xl border bg-card">
                   <SelectValue placeholder="Choose sorting" />

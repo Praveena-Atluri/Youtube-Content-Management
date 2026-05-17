@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AlertTriangle, Info, WandSparkles } from "lucide-react";
 
 import type { StoryRecord } from "@/lib/types";
@@ -19,15 +19,41 @@ const VIDEO_GEM_URL =
 const WEB_STORY_GEM_URL =
   "https://gemini.google.com/gem/1E9Yx106pdwaHmROt1SBEeLiWutI7owIU?usp=sharing";
 
+function isGoogleNewsUrl(url?: string) {
+  if (!url) return false;
+  try {
+    return new URL(url).hostname === "news.google.com";
+  } catch {
+    return false;
+  }
+}
+
+const LOADING_HINTS = [
+  "Reading the story…",
+  "Analysing key details…",
+  "Setting up your studio…",
+  "Almost ready…",
+];
+
 export function StoryGenerator({ story, isLoading = false }: StoryGeneratorProps) {
   const [copied, setCopied] = useState(false);
-  const gemHint =
-    story?.metadata.source === "Google News Telugu"
-      ? "The source URL is a Google News link — don't paste it directly. Click the source URL first, wait for the redirect, then copy and paste the final URL to generate the script."
-      : "Paste the copied URL into the Gem to start generating.";
-  const canCopySourceUrl = Boolean(
-    story?.metadata.link && story.metadata.source !== "Google News Telugu"
-  );
+  const [hintIndex, setHintIndex] = useState(0);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setHintIndex(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setHintIndex((i) => (i + 1) % LOADING_HINTS.length);
+    }, 800);
+    return () => clearInterval(interval);
+  }, [isLoading]);
+  const isGoogleNews = isGoogleNewsUrl(story?.metadata.link);
+  const gemHint = isGoogleNews
+    ? "Google News link won't work directly in Gem. Open the link first, let it redirect, then copy and paste the final URL in the Gem to generate the script."
+    : "Ready for the story? Paste the copied URL into the Gem to start generating.";
+  const canCopySourceUrl = Boolean(story?.metadata.link && !isGoogleNews);
 
   const handleOpenVideoGem = () => {
     if (!story) {
@@ -73,7 +99,7 @@ export function StoryGenerator({ story, isLoading = false }: StoryGeneratorProps
               <WandSparkles className="relative size-7 animate-bounce text-primary" />
             </div>
             <div className="space-y-1 text-center">
-              <p className="text-sm font-semibold text-foreground">Fetching story...</p>
+              <p className="text-sm font-semibold text-foreground">{LOADING_HINTS[hintIndex]}</p>
               <p className="text-xs text-muted-foreground">Preparing your content studio</p>
             </div>
             <div className="flex gap-1.5">
@@ -96,7 +122,7 @@ export function StoryGenerator({ story, isLoading = false }: StoryGeneratorProps
                 </Badge>
               </div>
               <h2 className="mt-3 text-xl font-extrabold">{story.title}</h2>
-              <p className="mt-2 text-sm text-muted-foreground">{story.summary}</p>
+              <p className="mt-2 text-sm text-muted-foreground" style={{ display: "-webkit-box", WebkitLineClamp: 8, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{story.content_body || story.summary}</p>
               {story.metadata.link ? (
                 <div className="mt-3 flex flex-wrap items-start gap-2 text-sm">
                   <span className="font-semibold text-foreground">Source URL:</span>
@@ -106,7 +132,7 @@ export function StoryGenerator({ story, isLoading = false }: StoryGeneratorProps
                     rel="noreferrer"
                     className="min-w-0 flex-1 break-all text-primary underline underline-offset-4"
                   >
-                    {story.metadata.source === "Google News Telugu"
+                    {isGoogleNews
                       ? "Click here to open source article →"
                       : story.metadata.link}
                   </a>
@@ -145,7 +171,7 @@ export function StoryGenerator({ story, isLoading = false }: StoryGeneratorProps
               </div>
             </div>
 
-            {story.metadata.source === "Google News Telugu" ? (
+            {isGoogleNews ? (
               <div className="flex gap-3 rounded-3xl border border-amber-300 bg-amber-50 p-5 dark:border-amber-700/50 dark:bg-amber-900/20">
                 <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
                 <p className="text-sm font-medium text-amber-800 dark:text-amber-300">

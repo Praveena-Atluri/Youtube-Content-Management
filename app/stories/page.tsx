@@ -26,9 +26,9 @@ export default async function StoriesPage({ searchParams }: StoriesPageProps) {
   const sort: StorySortOption =
     params.sort === "publishedAt"
       ? "publishedAt"
-      : params.sort === "syncedAt"
-      ? "syncedAt"
-      : "virality";
+      : params.sort === "virality"
+      ? "virality"
+      : "syncedAt";
 
   const stories = await getStories(category, sort);
   const selectedStory =

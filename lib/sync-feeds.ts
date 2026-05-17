@@ -81,6 +81,10 @@ function inferTaxonomy(
     return { category: "sports" };
   }
 
+  if (fallback === "business") {
+    return { category: "business" };
+  }
+
   if (includesAny(sportsKeywords)) {
     return { category: "sports" };
   }
@@ -92,28 +96,44 @@ function inferTaxonomy(
   return { category: "news" };
 }
 
+const CATEGORY_BOOST: Record<string, number> = {
+  news:     15,
+  movies:   12,
+  sports:   12,
+  business: 10,
+  tech:     8,
+};
+
+const TITLE_POWER_WORDS = ["breaking", "exclusive", "urgent", "alert", "first", "shock", "major"];
+
 function calculateViralityScore(input: {
   publishedAt: string;
-  source: string;
-  summary: string;
+  title: string;
+  contentBody: string;
+  categoryHint: string;
 }) {
-  const ageInHours = Math.max(
-    1,
-    (Date.now() - new Date(input.publishedAt).getTime()) / 3_600_000
-  );
-  const freshnessBoost = Math.max(10, 100 - ageInHours * 4.5);
-  const sourceBoost =
-    input.source === "Google News Telugu" ? 12 : input.source === "Sakshi" ? 8 : 5;
-  const detailBoost = Math.min(input.summary.length / 14, 18);
+  const publishedTime = new Date(input.publishedAt).getTime();
+  const freshnessBoost = Number.isNaN(publishedTime)
+    ? 50
+    : Math.max(10, 100 - ((Date.now() - publishedTime) / 3_600_000) * 4.5);
 
-  return Number((freshnessBoost + sourceBoost + detailBoost).toFixed(1));
+  const categoryBoost = CATEGORY_BOOST[input.categoryHint] ?? 8;
+
+  const contentRichnessBoost = Math.min(input.contentBody.length / 50, 15);
+
+  const titleLower = input.title.toLowerCase();
+  const hasPunctuation = /[?!]/.test(input.title);
+  const hasPowerWord = TITLE_POWER_WORDS.some((w) => titleLower.includes(w));
+  const titleEngagementBoost = (hasPunctuation ? 5 : 0) + (hasPowerWord ? 5 : 0);
+
+  return Number((freshnessBoost + categoryBoost + contentRichnessBoost + titleEngagementBoost).toFixed(1));
 }
 
 function isWithinLast24Hours(publishedAt: string) {
   const publishedTime = new Date(publishedAt).getTime();
 
   if (Number.isNaN(publishedTime)) {
-    return false;
+    return true; // no date available — let it through
   }
 
   return Date.now() - publishedTime <= 24 * 60 * 60 * 1000;
@@ -140,6 +160,7 @@ function normalizeTitle(title: string) {
 
 export async function syncFeeds() {
   const supabase = createSupabaseAdminClient();
+  const syncTime = new Date().toISOString();
   const feedSources = await getActiveFeedSources();
   const movieKeywords = getMovieKeywords();
   const sportsKeywords = getSportsKeywords();
@@ -257,8 +278,9 @@ export async function syncFeeds() {
 
     const viralityScore = calculateViralityScore({
       publishedAt: candidate.publishedAt,
-      source: candidate.feed.source,
-      summary: candidate.summary
+      title: candidate.title,
+      contentBody: candidate.contentBody,
+      categoryHint: candidate.feed.categoryHint
     });
 
     const insertResult = await supabase.from("trending_topics").insert({
@@ -267,6 +289,7 @@ export async function syncFeeds() {
       summary: candidate.summary,
       content_body: candidate.contentBody,
       virality_score: viralityScore,
+      inserted_at: syncTime,
       metadata: {
         source: candidate.feed.source,
         feedLabel: candidate.feed.label,

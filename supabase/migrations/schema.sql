@@ -11,7 +11,7 @@ create extension if not exists pgcrypto;
 
 do $$ begin
   if not exists (select 1 from pg_type where typname = 'trending_category_v3') then
-    create type trending_category_v3 as enum ('news', 'movies', 'tech', 'sports');
+    create type trending_category_v3 as enum ('news', 'movies', 'tech', 'sports', 'business');
   end if;
 end $$;
 
@@ -35,7 +35,7 @@ create table if not exists public.feed_sources (
   source         text not null,
   label          text not null,
   url            text not null unique,
-  category_hint  text not null check (category_hint in ('news', 'movies', 'tech', 'sports')),
+  category_hint  text not null check (category_hint in ('news', 'movies', 'tech', 'sports', 'business')),
   active         boolean not null default true,
   display_order  integer not null default 0,
   created_at     timestamptz not null default now(),
@@ -60,9 +60,11 @@ create table if not exists public.youtube_videos (
 -- Indexes
 -- ============================================================
 
-create index if not exists trending_topics_category_idx    on public.trending_topics (category);
-create index if not exists trending_topics_inserted_at_idx on public.trending_topics (inserted_at desc);
-create index if not exists trending_topics_virality_idx    on public.trending_topics (virality_score desc);
+create index if not exists trending_topics_category_idx             on public.trending_topics (category);
+create index if not exists trending_topics_inserted_at_idx          on public.trending_topics (inserted_at desc);
+create index if not exists trending_topics_virality_idx             on public.trending_topics (virality_score desc);
+create index if not exists trending_topics_inserted_at_virality_idx on public.trending_topics (inserted_at desc, virality_score desc);
+create index if not exists trending_topics_category_inserted_at_idx on public.trending_topics (category, inserted_at desc, virality_score desc);
 
 create unique index if not exists trending_topics_article_url_idx
   on public.trending_topics ((metadata->>'link'))
@@ -117,6 +119,9 @@ values
   ('Wired',                'Wired',           'https://www.wired.com/feed',                                           'tech',   true, 150),
   -- movies
   ('123Telugu',            '123 Telugu',      'https://www.123telugu.com/rss',                                        'movies', true, 160),
+  ('123Telugu',            '123 Telugu',      'https://www.123telugu.com/category/mnews/rss',                          'movies', true, 161),
+  ('123Telugu',            '123 Telugu',      'https://www.123telugu.com/category/reviews/rss',                        'movies', true, 162),
+  ('123Telugu',            '123 Telugu',      'https://www.123telugu.com/category/interviews/rss',                     'movies', true, 163),
   ('GreatAndhra',          'Great Andhra',    'https://www.greatandhra.com/movies/feed/',                             'movies', true, 170),
   ('FilmiBeat',            'Film Beat',       'https://www.filmibeat.com/rss/feeds/filmibeat-fb.xml',                 'movies', true, 180),
   ('FilmiBeat',            'Film Beat',       'https://www.filmibeat.com/rss/feeds/telugu-fb.xml',                    'movies', true, 190),
@@ -141,7 +146,33 @@ values
   ('India.com Sports',     'India.com',       'https://www.india.com/sports/feed/',                                   'sports', true,  250),
   ('Sports Pages',         'Sports Pages',    'https://sportspages.in/feed/',                                         'sports', true,  260),
   ('Economic Times Sports','Economic Times',  'https://economictimes.indiatimes.com/rssfeeds/26407562.cms',           'sports', true,  270),
-  ('IndianSportsBuzz',     'IndianSportsBuzz','https://www.indiansportsbuzz.in/feed/',                                'sports', true,  280)
+  ('IndianSportsBuzz',     'IndianSportsBuzz','https://www.indiansportsbuzz.in/feed/',                                'sports',   true, 280),
+  -- sports additions
+  ('Live Mint',            'Live Mint',       'https://www.livemint.com/rss/sports',                                   'sports',   true, 290),
+  -- tech additions
+  ('Telugu Tech',          'Telugu Tech',     'https://telugutech.in/category/tech-news/feed/',                        'tech',     true, 160),
+  ('Live Mint',            'Live Mint',       'https://www.livemint.com/rss/technology',                               'tech',     true, 170),
+  -- business
+  ('Good Returns',         'Good Returns',    'https://telugu.goodreturns.in/rss/feeds/goodreturns-telugu-fb.xml',             'business', true, 100),
+  ('Good Returns',         'Good Returns',    'https://telugu.goodreturns.in/rss/feeds/telugu-money-classroom-fb.xml',         'business', true, 101),
+  ('Good Returns',         'Good Returns',    'https://telugu.goodreturns.in/rss/feeds/telugu-money-news-fb.xml',              'business', true, 102),
+  ('Good Returns',         'Good Returns',    'https://telugu.goodreturns.in/rss/feeds/telugu-money-personal-finance-fb.xml',  'business', true, 103),
+  ('Good Returns',         'Good Returns',    'https://telugu.goodreturns.in/rss/feeds/telugu-msme-fb.xml',                    'business', true, 104),
+  ('Good Returns',         'Good Returns',    'https://telugu.goodreturns.in/rss/feeds/telugu-market-upadate-fb.xml',          'business', true, 105),
+  ('Good Returns',         'Good Returns',    'https://telugu.goodreturns.in/rss/feeds/telugu-silver-price-fb.xml',            'business', true, 106),
+  ('Live Mint',            'Live Mint',       'https://www.livemint.com/rss/companies',                                'business', true, 110),
+  ('Live Mint',            'Live Mint',       'https://www.livemint.com/rss/opinion',                                  'business', true, 111),
+  ('Live Mint',            'Live Mint',       'https://www.livemint.com/rss/markets',                                  'business', true, 112),
+  ('Live Mint',            'Live Mint',       'https://www.livemint.com/rss/money',                                    'business', true, 113),
+  ('Economic Times',       'Economic Times',  'https://economictimes.indiatimes.com/rssfeedsdefault.cms',               'business', true, 120),
+  ('Bloomberg',            'Bloomberg',       'https://prod-qt-images.s3.amazonaws.com/production/bloombergquint/feed.xml', 'business', true, 130),
+  ('The Hindu Business',   'The Hindu',       'https://www.thehindubusinessline.com/?service=rss',                     'business', true, 140),
+  ('Business Standard',    'Business Standard','https://www.business-standard.com/rss/home_page_top_stories.rss',      'business', true, 150),
+  ('Insights Success',     'Insights Success','https://insightssuccess.com/feed/',                                      'business', true, 160),
+  ('Yahoo Finance',        'Yahoo Finance',   'https://finance.yahoo.com/news/rssindex',                                'business', true, 170),
+  ('Investing',            'Investing',       'https://www.investing.com/rss/news.rss',                                 'business', true, 180),
+  ('Seeking Alpha',        'Seeking Alpha',   'https://seekingalpha.com/market_currents.xml',                           'business', true, 190),
+  ('NDTV Profit',          'NDTV Profit',     'https://www.ndtvprofit.com/rss',                                         'business', true, 200)
 on conflict (url) do update
 set
   source        = excluded.source,

@@ -18,7 +18,7 @@ export default async function VideosPage({ searchParams }: VideosPageProps) {
   const validSorts: VideoSortOption[] = ["virality", "publishedAt", "syncedAt", "views"];
   const sort: VideoSortOption = validSorts.includes(params.sort as VideoSortOption)
     ? (params.sort as VideoSortOption)
-    : "virality";
+    : "syncedAt";
 
   const channelId = YOUTUBE_CHANNELS.some((c) => c.channelId === params.channel)
     ? (params.channel as string)
