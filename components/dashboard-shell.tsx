@@ -55,9 +55,7 @@ export function DashboardShell({
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   const selectedLabel = categoryLabel(category);
-  const creatorHint = selectedStory
-    ? "Story selected. Open a Gem on the right to generate your script."
-    : "Select a story to generate video or web story scripts.";
+
   const lastSyncedAt = stories.reduce<string | null>((latest, story) => {
     if (!latest) {
       return story.inserted_at;
@@ -307,14 +305,6 @@ export function DashboardShell({
               <p className="mt-2 text-3xl font-black">{stories.length}</p>
             </div>
 
-            <div className="rounded-3xl border bg-card/90 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                Creator Status
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {creatorHint}
-              </p>
-            </div>
 
           </div>
         </div>

@@ -124,7 +124,8 @@ function calculateViralityScore(input: {
   const titleLower = input.title.toLowerCase();
   const hasPunctuation = /[?!]/.test(input.title);
   const hasPowerWord = TITLE_POWER_WORDS.some((w) => titleLower.includes(w));
-  const titleEngagementBoost = (hasPunctuation ? 5 : 0) + (hasPowerWord ? 5 : 0);
+  const hasNonEnglish = /[ఀ-౿]/.test(input.title);
+  const titleEngagementBoost = (hasPunctuation ? 5 : 0) + (hasPowerWord ? 5 : 0) + (hasNonEnglish ? 3 : 0);
 
   return Number((freshnessBoost + categoryBoost + contentRichnessBoost + titleEngagementBoost).toFixed(1));
 }

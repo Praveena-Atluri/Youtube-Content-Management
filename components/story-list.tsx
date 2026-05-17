@@ -35,14 +35,14 @@ export function StoryList({
 
   return (
     <Card className="rounded-[1.75rem] bg-card/90 dark:bg-card shadow-sm backdrop-blur">
-      <CardHeader>
+      <CardHeader className="pb-3">
         <CardTitle className="text-2xl font-black">{heading}</CardTitle>
         <p className="text-sm text-muted-foreground">
           Sorted by {sortLabel}.
         </p>
       </CardHeader>
-      <CardContent>
-        <ScrollArea key={`${category}-${sort}`} className="h-[70vh] pr-4">
+      <CardContent className="pt-0 pb-1">
+        <ScrollArea key={`${category}-${sort}`} className="h-[82vh] pr-4">
           <div className="space-y-3">
             {stories.length === 0 ? (
               <div className="rounded-3xl border border-dashed bg-muted/40 p-6 text-sm text-muted-foreground">
