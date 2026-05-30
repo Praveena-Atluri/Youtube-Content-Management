@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { WandSparkles } from "lucide-react";
+import { BookOpenText, Clapperboard, WandSparkles } from "lucide-react";
 
 import type { VideoRecord } from "@/lib/trending-videos";
 import { formatDistanceToNowStrict } from "@/lib/date";
@@ -18,6 +18,9 @@ const VIDEO_GEM_URL =
 
 const WEB_STORY_GEM_URL =
   "https://gemini.google.com/gem/1E9Yx106pdwaHmROt1SBEeLiWutI7owIU?usp=sharing";
+
+const SHORT_STORY_GEM_URL =
+  "https://gemini.google.com/gem/1vnwo5Pr-4GN_sYyjIVZSzahTDk1p5ifI?usp=sharing";
 
 function formatViewCount(count: number): string {
   if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M views`;
@@ -101,7 +104,7 @@ export function VideoGenerator({ video }: VideoGeneratorProps) {
                     window.open(VIDEO_GEM_URL, "_blank", "noopener,noreferrer")
                   }
                 >
-                  <WandSparkles className="mr-2 size-4" />
+                  <Clapperboard className="mr-2 size-4" />
                   Generate Video Script
                 </Button>
                 <Button
@@ -111,8 +114,18 @@ export function VideoGenerator({ video }: VideoGeneratorProps) {
                     window.open(WEB_STORY_GEM_URL, "_blank", "noopener,noreferrer")
                   }
                 >
+                  <BookOpenText className="mr-2 size-4" />
+                  Generate Web Story
+                </Button>
+                <Button
+                  className="h-11 rounded-2xl"
+                  variant="secondary"
+                  onClick={() =>
+                    window.open(SHORT_STORY_GEM_URL, "_blank", "noopener,noreferrer")
+                  }
+                >
                   <WandSparkles className="mr-2 size-4" />
-                  Generate Web Story Script
+                  Generate Short Story
                 </Button>
               </div>
             </div>

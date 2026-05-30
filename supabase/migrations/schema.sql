@@ -110,6 +110,11 @@ values
   ('NT News',              'NT News',         'https://www.ntnews.com/feed',                                          'news',   true,  70),
   ('Andhrajyothy',         'Andhrajyothy',    'https://www.andhrajyothy.com/rss/headlines.xml',                       'news',   true,  80),
   ('Eenadu',               'Eenadu',          'https://www.eenadu.net/rss/latestnews.xml',                            'news',   true,  90),
+  ('Great Andhra Telugu',  'Great Andhra',    'https://telugu.greatandhra.com/feed',                                  'news',   true,  91),
+  ('Telugu Post',          'Telugu Post',     'https://www.telugupost.com/feed',                                      'news',   true,  92),
+  ('Disha Daily',          'Disha Daily',     'https://www.dishadaily.com/feed',                                      'news',   true,  93),
+  ('Mahanaadu',            'Mahanaadu',       'https://mahanaadu.com/feed/',                                          'news',   true,  94),
+  ('BBC Telugu',           'BBC Telugu',      'https://feeds.bbci.co.uk/telugu/rss.xml',                              'news',   true,  95),
   -- tech
   ('Lux',                  'Lux Camera',      'https://lux.camera/rss',                                               'tech',   true, 100),
   ('TechRadar',            'TechRadar',       'https://www.techradar.com/rss',                                        'tech',   true, 110),

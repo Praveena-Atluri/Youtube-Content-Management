@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { AlertTriangle, Info, WandSparkles } from "lucide-react";
+import {
+  AlertTriangle,
+  BookOpenText,
+  Clapperboard,
+  Info,
+  WandSparkles
+} from "lucide-react";
 
 import type { StoryRecord } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +24,9 @@ const VIDEO_GEM_URL =
 
 const WEB_STORY_GEM_URL =
   "https://gemini.google.com/gem/1E9Yx106pdwaHmROt1SBEeLiWutI7owIU?usp=sharing";
+
+const SHORT_STORY_GEM_URL =
+  "https://gemini.google.com/gem/1vnwo5Pr-4GN_sYyjIVZSzahTDk1p5ifI?usp=sharing";
 
 function isGoogleNewsUrl(url?: string) {
   if (!url) return false;
@@ -69,6 +78,14 @@ export function StoryGenerator({ story, isLoading = false }: StoryGeneratorProps
     }
 
     window.open(WEB_STORY_GEM_URL, "_blank", "noopener,noreferrer");
+  };
+
+  const handleOpenShortStoryGem = () => {
+    if (!story) {
+      return;
+    }
+
+    window.open(SHORT_STORY_GEM_URL, "_blank", "noopener,noreferrer");
   };
 
   const handleCopySourceUrl = async () => {
@@ -157,7 +174,7 @@ export function StoryGenerator({ story, isLoading = false }: StoryGeneratorProps
                   className="h-11 rounded-2xl"
                   onClick={handleOpenVideoGem}
                 >
-                  <WandSparkles className="mr-2 size-4" />
+                  <Clapperboard className="mr-2 size-4" />
                   Generate Video Script
                 </Button>
                 <Button
@@ -165,8 +182,16 @@ export function StoryGenerator({ story, isLoading = false }: StoryGeneratorProps
                   variant="secondary"
                   onClick={handleOpenWebStoryGem}
                 >
+                  <BookOpenText className="mr-2 size-4" />
+                  Generate Web Story
+                </Button>
+                <Button
+                  className="h-11 rounded-2xl"
+                  variant="secondary"
+                  onClick={handleOpenShortStoryGem}
+                >
                   <WandSparkles className="mr-2 size-4" />
-                  Generate Web Story Script
+                  Generate Short Story
                 </Button>
               </div>
             </div>
