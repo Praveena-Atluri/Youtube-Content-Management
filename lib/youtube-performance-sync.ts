@@ -67,7 +67,7 @@ type SyncInput = {
   channelId?: string;
   startDate: string;
   endDate: string;
-  syncType?: "daily" | "backfill" | "manual";
+  syncType?: "daily" | "manual";
 };
 
 type DailyMetricAccumulator = Partial<MetricTotals> & {
@@ -687,14 +687,4 @@ export function getDefaultSyncDateRange(now = new Date()) {
   const yesterday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1));
   const date = normalizeReportDate(yesterday);
   return { startDate: date, endDate: date };
-}
-
-export function getBackfillDateRange(now = new Date()) {
-  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1));
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 24, 1));
-
-  return {
-    startDate: normalizeReportDate(start),
-    endDate: normalizeReportDate(end)
-  };
 }

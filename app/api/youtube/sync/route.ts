@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
-  getBackfillDateRange,
   getDefaultSyncDateRange,
   syncYoutubeCmsAnalytics
 } from "@/lib/youtube-performance-sync";
@@ -30,7 +29,11 @@ export async function POST(request: NextRequest) {
     body = {};
   }
 
-  const fallbackRange = body.backfill ? getBackfillDateRange() : getDefaultSyncDateRange();
+  if (body.backfill) {
+    return NextResponse.json({ error: "Backfill sync is disabled. Select a specific month or date range." }, { status: 400 });
+  }
+
+  const fallbackRange = getDefaultSyncDateRange();
   const requestedStartDate = body.startDate ?? fallbackRange.startDate;
   const endDate = body.endDate ?? fallbackRange.endDate;
   const channelId = body.channelId?.trim();
@@ -47,9 +50,7 @@ export async function POST(request: NextRequest) {
   }
 
   const startDate =
-    body.includePreviousMonth && body.startDate && !body.backfill
-      ? getPreviousMonthStartDate(requestedStartDate)
-      : requestedStartDate;
+    body.includePreviousMonth && body.startDate ? getPreviousMonthStartDate(requestedStartDate) : requestedStartDate;
 
   if (new Date(startDate).getTime() > new Date(endDate).getTime()) {
     return NextResponse.json({ error: "startDate must be before or equal to endDate." }, { status: 400 });
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
       channelId,
       startDate,
       endDate,
-      syncType: body.backfill ? "backfill" : body.startDate || body.endDate ? "manual" : "daily"
+      syncType: body.startDate || body.endDate ? "manual" : "daily"
     });
     return NextResponse.json({
       ...result,

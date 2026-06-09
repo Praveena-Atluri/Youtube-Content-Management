@@ -77,14 +77,6 @@ curl -X POST http://localhost:3000/api/youtube/sync \
   -d '{"channelId":"UCXjhJbviBl0M4JAC3cxDXqA","startDate":"2026-05-01","endDate":"2026-05-31"}'
 ```
 
-Run the initial 24-month backfill:
-
-```bash
-curl -X POST http://localhost:3000/api/youtube/sync \
-  -H "content-type: application/json" \
-  -d '{"backfill":true}'
-```
-
 Revenue values are YouTube API-reported estimates. `creatorContentType` is used for Shorts/long-form where the Analytics API allows it; otherwise the dashboard falls back to video duration.
 
 ## Deploy to Supabase

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { DatabaseZap, LoaderCircle, RefreshCcw } from "lucide-react";
+import { LoaderCircle, RefreshCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -34,16 +34,14 @@ export function YoutubeSyncActions({
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
-  const runSync = (backfill: boolean) => {
+  const runSync = () => {
     startTransition(async () => {
       setMessage(null);
 
       const response = await fetch("/api/youtube/sync", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(
-          backfill ? { backfill: true, channelId } : { channelId, startDate, endDate, includePreviousMonth: true }
-        )
+        body: JSON.stringify({ channelId, startDate, endDate, includePreviousMonth: true })
       });
 
       const payload = (await response.json()) as SyncPayload;
@@ -62,27 +60,10 @@ export function YoutubeSyncActions({
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Button
-          className="h-11 rounded-md"
-          onClick={() => runSync(false)}
-          disabled={disabled || isPending}
-          type="button"
-        >
-          {isPending ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <RefreshCcw className="mr-2 size-4" />}
-          Sync {monthLabel}
-        </Button>
-        <Button
-          className="h-11 rounded-md"
-          onClick={() => runSync(true)}
-          disabled={disabled || isPending}
-          type="button"
-          variant="secondary"
-        >
-          {isPending ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <DatabaseZap className="mr-2 size-4" />}
-          Backfill 24 months
-        </Button>
-      </div>
+      <Button className="h-11 rounded-md" onClick={runSync} disabled={disabled || isPending} type="button">
+        {isPending ? <LoaderCircle className="mr-2 size-4 animate-spin" /> : <RefreshCcw className="mr-2 size-4" />}
+        Sync {monthLabel}
+      </Button>
 
       {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
     </div>
