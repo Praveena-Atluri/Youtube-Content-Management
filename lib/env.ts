@@ -14,6 +14,13 @@ export function getEnv() {
     supabaseServiceRoleKey: requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
     movieKeywords: process.env.MOVIE_KEYWORDS ?? "",
     sportsKeywords: process.env.SPORTS_KEYWORDS ?? "",
-    youtubeApiKey: process.env.YOUTUBE_API_KEY ?? ""
+    youtubeApiKey: process.env.YOUTUBE_API_KEY ?? "",
+    googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+    youtubeOauthRefreshToken: process.env.YOUTUBE_OAUTH_REFRESH_TOKEN ?? "",
+    youtubeContentOwnerId: process.env.YOUTUBE_CONTENT_OWNER_ID ?? "",
+    youtubeAnalyticsFilters: process.env.YOUTUBE_ANALYTICS_FILTERS ?? "claimedStatus==claimed",
+    dashboardBasicUser: process.env.DASHBOARD_BASIC_USER ?? "management",
+    dashboardBasicPassword: process.env.DASHBOARD_BASIC_PASSWORD ?? ""
   };
 }

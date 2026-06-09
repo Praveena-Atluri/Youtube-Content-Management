@@ -177,7 +177,46 @@ values
   ('Yahoo Finance',        'Yahoo Finance',   'https://finance.yahoo.com/news/rssindex',                                'business', true, 170),
   ('Investing',            'Investing',       'https://www.investing.com/rss/news.rss',                                 'business', true, 180),
   ('Seeking Alpha',        'Seeking Alpha',   'https://seekingalpha.com/market_currents.xml',                           'business', true, 190),
-  ('NDTV Profit',          'NDTV Profit',     'https://www.ndtvprofit.com/rss',                                         'business', true, 200)
+  ('NDTV Profit',          'NDTV Profit',     'https://www.ndtvprofit.com/rss',                                         'business', true, 200),
+  -- news: ABP Live
+  ('ABP Live Telugu', 'ABP Live - Election',        'https://telugu.abplive.com/election/feed',                    'news', true,  96),
+  ('ABP Live Telugu', 'ABP Live - Fact Check',      'https://telugu.abplive.com/fact-check/feed',                  'news', true,  97),
+  ('ABP Live Telugu', 'ABP Live - India@2047',      'https://telugu.abplive.com/india-at-2047/feed',               'news', true,  98),
+  ('ABP Live Telugu', 'ABP Live - Politics',        'https://telugu.abplive.com/politics/feed',                    'news', true,  99),
+  ('ABP Live Telugu', 'ABP Live - Andhra Pradesh',  'https://telugu.abplive.com/andhra-pradesh/feed',              'news', true, 100),
+  ('ABP Live Telugu', 'ABP Live - Amaravati',       'https://telugu.abplive.com/andhra-pradesh/amravati/feed',     'news', true, 101),
+  ('ABP Live Telugu', 'ABP Live - Crime',           'https://telugu.abplive.com/crime/feed',                       'news', true, 102),
+  ('ABP Live Telugu', 'ABP Live - News',            'https://telugu.abplive.com/news/feed',                        'news', true, 103),
+  ('ABP Live Telugu', 'ABP Live - World',           'https://telugu.abplive.com/news/world/feed',                  'news', true, 104),
+  ('ABP Live Telugu', 'ABP Live - India',           'https://telugu.abplive.com/news/india/feed',                  'news', true, 105),
+  ('ABP Live Telugu', 'ABP Live - Telangana',       'https://telugu.abplive.com/telangana/feed',                   'news', true, 106),
+  ('ABP Live Telugu', 'ABP Live - Hyderabad',       'https://telugu.abplive.com/telangana/hyderabad/feed',         'news', true, 107),
+  ('ABP Live Telugu', 'ABP Live - Trending',        'https://telugu.abplive.com/trending/feed',                    'news', true, 108),
+  -- news: Muchata
+  ('Muchata',         'Muchata',                    'https://muchata.com/feed/',                                   'news', true, 109),
+  -- movies: ABP Live
+  ('ABP Live Telugu', 'ABP Live - Entertainment',   'https://telugu.abplive.com/entertainment/feed',               'movies', true, 240),
+  ('ABP Live Telugu', 'ABP Live - Cinema',          'https://telugu.abplive.com/entertainment/cinema/feed',        'movies', true, 241),
+  ('ABP Live Telugu', 'ABP Live - Movie Reviews',   'https://telugu.abplive.com/entertainment/movie-review/feed',  'movies', true, 242),
+  ('ABP Live Telugu', 'ABP Live - TV',              'https://telugu.abplive.com/entertainment/tv/feed',            'movies', true, 243),
+  ('ABP Live Telugu', 'ABP Live - OTT',             'https://telugu.abplive.com/entertainment/ott-webseries/feed', 'movies', true, 244),
+  -- sports: ABP Live
+  ('ABP Live Telugu', 'ABP Live - Sports',          'https://telugu.abplive.com/sports/feed',                      'sports', true, 300),
+  ('ABP Live Telugu', 'ABP Live - Cricket',         'https://telugu.abplive.com/sports/cricket/feed',              'sports', true, 301),
+  ('ABP Live Telugu', 'ABP Live - Olympics',        'https://telugu.abplive.com/sports/olympics/feed',             'sports', true, 302),
+  ('ABP Live Telugu', 'ABP Live - IPL',             'https://telugu.abplive.com/sports/ipl/feed',                  'sports', true, 303),
+  ('ABP Live Telugu', 'ABP Live - Football',        'https://telugu.abplive.com/sports/football/feed',             'sports', true, 304),
+  -- business: ABP Live
+  ('ABP Live Telugu', 'ABP Live - Business',        'https://telugu.abplive.com/business/feed',                    'business', true, 210),
+  ('ABP Live Telugu', 'ABP Live - Personal Finance', 'https://telugu.abplive.com/business/personal-finance/feed',  'business', true, 211),
+  ('ABP Live Telugu', 'ABP Live - Mutual Funds',    'https://telugu.abplive.com/business/mutual-funds/feed',       'business', true, 212),
+  ('ABP Live Telugu', 'ABP Live - IPO',             'https://telugu.abplive.com/business/ipo/feed',                'business', true, 213),
+  ('ABP Live Telugu', 'ABP Live - Budget',          'https://telugu.abplive.com/business/budget/feed',             'business', true, 214),
+  -- tech: ABP Live
+  ('ABP Live Telugu', 'ABP Live - Tech',            'https://telugu.abplive.com/tech/feed',                        'tech', true, 180),
+  ('ABP Live Telugu', 'ABP Live - Gadgets',         'https://telugu.abplive.com/tech/gadgets/feed',                'tech', true, 181),
+  ('ABP Live Telugu', 'ABP Live - Laptops',         'https://telugu.abplive.com/tech/laptop/feed',                 'tech', true, 182),
+  ('ABP Live Telugu', 'ABP Live - Mobiles',         'https://telugu.abplive.com/tech/mobiles/feed',                'tech', true, 183)
 on conflict (url) do update
 set
   source        = excluded.source,

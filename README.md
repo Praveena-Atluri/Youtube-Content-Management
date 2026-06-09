@@ -20,6 +20,7 @@ A Next.js 15 dashboard for scouting Telugu trends, deduplicating them by source 
 - Unique story listing limited to the last 24 hours
 - Automatic cleanup of stories whose sync time is older than 24 hours
 - Gemini Gem handoff for both video and web story creation
+- YouTube CMS performance dashboard for monthly views, subscribers, revenue, long/short split, and video rankings
 
 ## Local setup
 
@@ -38,6 +39,8 @@ cp .env.example .env.local
 3. Add your Supabase credentials.
    Optional:
    set `MOVIE_KEYWORDS` as a comma-separated or newline-separated list if you want to override the default movie keyword set.
+   For the YouTube CMS dashboard, also set:
+   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `YOUTUBE_OAUTH_REFRESH_TOKEN`, `YOUTUBE_CONTENT_OWNER_ID`, `DASHBOARD_BASIC_USER`, and `DASHBOARD_BASIC_PASSWORD`.
 
 4. Apply the migrations in Supabase:
 
@@ -45,11 +48,44 @@ cp .env.example .env.local
 supabase db push
 ```
 
+The YouTube CMS dashboard schema is kept separately in
+[youtube_performance_schema.sql](/Users/praveena.atluri/Documents/youtube-content-management/supabase/migrations/youtube_performance_schema.sql:1).
+
 5. Run the app:
 
 ```bash
 npm run dev
 ```
+
+## YouTube CMS performance sync
+
+The YouTube CMS hub lives at `/youtube-performance`; the monthly management dashboard is at `/youtube-performance/monthly`. It reads from private Supabase analytics tables using the server-side service role key, and syncs are run on demand from the dashboard.
+
+Before syncing, apply the dedicated dashboard schema:
+
+```bash
+supabase db push
+```
+
+Use the channel filter refresh button to pull the CMS-managed channel catalog from YouTube Studio. Select one channel before syncing; the dashboard intentionally does not offer all-channel sync to avoid heavy CMS API load.
+
+Sync a specific date range:
+
+```bash
+curl -X POST http://localhost:3000/api/youtube/sync \
+  -H "content-type: application/json" \
+  -d '{"channelId":"UCXjhJbviBl0M4JAC3cxDXqA","startDate":"2026-05-01","endDate":"2026-05-31"}'
+```
+
+Run the initial 24-month backfill:
+
+```bash
+curl -X POST http://localhost:3000/api/youtube/sync \
+  -H "content-type: application/json" \
+  -d '{"backfill":true}'
+```
+
+Revenue values are YouTube API-reported estimates. `creatorContentType` is used for Shorts/long-form where the Analytics API allows it; otherwise the dashboard falls back to video duration.
 
 ## Deploy to Supabase
 
