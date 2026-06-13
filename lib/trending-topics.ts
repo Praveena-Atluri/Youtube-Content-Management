@@ -33,9 +33,11 @@ function isWithinLast24Hours(story: StoryRecord) {
 
 export async function getStories(
   category: CategoryFilter,
-  sort: StorySortOption
+  sort: StorySortOption,
+  sources: string[] = []
 ): Promise<StoryRecord[]> {
   const supabase = createSupabaseAdminClient();
+  const selectedSources = new Set(sources);
 
   const response = await supabase
     .from("trending_topics")
@@ -62,10 +64,13 @@ export async function getStories(
     }
 
     if (category === "all") {
-      return true;
+      return selectedSources.size === 0 || selectedSources.has(story.metadata.source);
     }
 
-    return story.category === category;
+    return (
+      story.category === category &&
+      (selectedSources.size === 0 || selectedSources.has(story.metadata.source))
+    );
   });
 
   filteredStories.sort((left, right) => {

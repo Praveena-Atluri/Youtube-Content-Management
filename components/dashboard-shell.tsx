@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef, useEffect } from "react";
-import { LoaderCircle, Newspaper, RefreshCcw, Rss, Zap, Globe } from "lucide-react";
+import { Check, ChevronDown, LoaderCircle, Newspaper, RefreshCcw, Rss, Zap, Globe, X } from "lucide-react";
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -10,12 +10,14 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 import { formatDistanceToNowStrict } from "@/lib/date";
+import { cn } from "@/lib/utils";
 import {
   buildCategoryOptions,
   categoryLabel
 } from "@/lib/types";
 import type {
   CategoryFilter,
+  SourceFilterOption,
   StoryRecord,
   StorySortOption
 } from "@/lib/types";
@@ -44,6 +46,8 @@ type DashboardShellProps = {
   activeCategories: CategoryFilter[];
   category: CategoryFilter;
   sort: StorySortOption;
+  sourceOptions: SourceFilterOption[];
+  selectedSources: string[];
   stories: StoryRecord[];
   selectedStory: StoryRecord | null;
 };
@@ -52,6 +56,8 @@ export function DashboardShell({
   activeCategories,
   category,
   sort,
+  sourceOptions,
+  selectedSources,
   stories,
   selectedStory: initialSelectedStory
 }: DashboardShellProps) {
@@ -62,8 +68,15 @@ export function DashboardShell({
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [selectedStory, setSelectedStory] = useState<StoryRecord | null>(initialSelectedStory);
+  const sourceDropdownRef = useRef<HTMLDetailsElement | null>(null);
 
   const selectedLabel = categoryLabel(category);
+  const sourceFilterLabel =
+    selectedSources.length === 0
+      ? "All sources"
+      : selectedSources.length === 1
+      ? selectedSources[0]
+      : `${selectedSources.length} sources selected`;
 
   const lastSyncedAt = stories.reduce<string | null>((latest, story) => {
     if (!latest) {
@@ -78,17 +91,36 @@ export function DashboardShell({
   const updateParams = (
     nextCategory: CategoryFilter,
     nextSort?: StorySortOption,
+    nextSources = selectedSources,
   ) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("category", nextCategory);
     params.delete("subcategory");
     params.delete("storyId");
     params.set("sort", nextSort ?? sort);
+    params.delete("source");
+    nextSources.forEach((source) => params.append("source", source));
 
     const href = `${pathname}?${params.toString()}` as Route;
     startNavigationTransition(() => {
-      router.push(href);
+      router.push(href, { scroll: false });
     });
+  };
+
+  const handleSourceToggle = (source: string, checked: boolean) => {
+    const nextSourceSet = new Set(selectedSources);
+
+    if (checked) {
+      nextSourceSet.add(source);
+    } else {
+      nextSourceSet.delete(source);
+    }
+
+    const nextSources = sourceOptions
+      .map((sourceOption) => sourceOption.source)
+      .filter((sourceName) => nextSourceSet.has(sourceName));
+
+    updateParams(category, sort, nextSources);
   };
 
   const handleSync = async () => {
@@ -140,6 +172,24 @@ export function DashboardShell({
   useEffect(() => {
     setSelectedStory(stories[0] ?? null);
   }, [stories]);
+
+  useEffect(() => {
+    const closeSourceDropdown = (event: PointerEvent) => {
+      const dropdown = sourceDropdownRef.current;
+
+      if (!dropdown?.open || dropdown.contains(event.target as Node)) {
+        return;
+      }
+
+      dropdown.open = false;
+    };
+
+    document.addEventListener("pointerdown", closeSourceDropdown);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeSourceDropdown);
+    };
+  }, []);
 
   if (isSyncing) {
     const stage = SYNC_STAGES[syncStage];
@@ -217,7 +267,7 @@ export function DashboardShell({
               <Select
                 value={category}
                 onValueChange={(value: CategoryFilter) =>
-                  updateParams(value, sort)
+                  updateParams(value, sort, [])
                 }
                 disabled={isNavigating || isSyncing}
               >
@@ -245,7 +295,7 @@ export function DashboardShell({
               <Select
                 value={sort}
                 onValueChange={(value: StorySortOption) =>
-                  updateParams(category, value)
+                  updateParams(category, value, selectedSources)
                 }
                 disabled={isNavigating || isSyncing}
               >
@@ -258,6 +308,89 @@ export function DashboardShell({
                   <SelectItem value="syncedAt">Synced Time</SelectItem>
                 </SelectContent>
               </Select>
+            </CardContent>
+          </Card>
+
+          <Card className="relative z-40 border-none bg-transparent shadow-none">
+            <CardHeader className="px-0 pt-0">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-sm font-semibold text-muted-foreground">
+                  Source
+                </CardTitle>
+                {selectedSources.length > 0 ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-xs"
+                    onClick={() => updateParams(category, sort, [])}
+                    disabled={isNavigating || isSyncing}
+                  >
+                    <X className="mr-1 size-3" />
+                    Clear
+                  </Button>
+                ) : null}
+              </div>
+            </CardHeader>
+            <CardContent className="px-0 pb-0">
+              <details
+                ref={sourceDropdownRef}
+                className={cn(
+                  "group relative",
+                  (isNavigating || isSyncing) && "pointer-events-none"
+                )}
+              >
+                <summary className="flex h-12 cursor-pointer list-none items-center justify-between gap-2 rounded-2xl border bg-card px-3 text-sm ring-offset-background transition focus:outline-none focus:ring-2 focus:ring-ring [&::-webkit-details-marker]:hidden">
+                  <span className="truncate font-medium">{sourceFilterLabel}</span>
+                  <ChevronDown className="size-4 shrink-0 opacity-60 transition group-open:rotate-180" />
+                </summary>
+                <div className="absolute left-0 right-0 z-50 mt-2 rounded-2xl border bg-card p-2 shadow-lg">
+                  <div className="max-h-64 overflow-y-auto pr-2">
+                    <div className="space-y-1">
+                      {sourceOptions.length === 0 ? (
+                        <div className="rounded-xl px-2 py-3 text-sm text-muted-foreground">
+                          No sources available
+                        </div>
+                      ) : null}
+                      {sourceOptions.map((sourceOption) => {
+                        const isChecked = selectedSources.includes(sourceOption.source);
+
+                        return (
+                          <button
+                            key={sourceOption.source}
+                            type="button"
+                            role="checkbox"
+                            aria-checked={isChecked}
+                            disabled={isNavigating || isSyncing}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() =>
+                              handleSourceToggle(sourceOption.source, !isChecked)
+                            }
+                            className="flex min-h-10 w-full cursor-pointer items-center gap-3 rounded-xl px-2 py-2 text-left text-sm transition hover:bg-muted/70 disabled:cursor-wait"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={cn(
+                                "flex size-4 shrink-0 items-center justify-center rounded border",
+                                isChecked
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-border bg-background"
+                              )}
+                            >
+                              {isChecked ? <Check className="size-3" /> : null}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate font-medium">
+                                {sourceOption.source}
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </details>
             </CardContent>
           </Card>
 

@@ -46,6 +46,25 @@ const CONTENT_TYPE_METRIC_SETS = [
   ["views"]
 ];
 
+const COUNTRY_METRIC_SETS = [
+  [
+    "views",
+    "estimatedMinutesWatched",
+    "estimatedRevenue",
+    "estimatedAdRevenue",
+    "grossRevenue",
+    "monetizedPlaybacks",
+    "adImpressions",
+    "playbackBasedCpm"
+  ],
+  ["views", "estimatedMinutesWatched", "estimatedRevenue", "estimatedAdRevenue", "grossRevenue", "monetizedPlaybacks"],
+  ["views", "estimatedMinutesWatched", "estimatedRevenue"],
+  ["views", "estimatedRevenue"],
+  ["estimatedRevenue"],
+  ["views", "estimatedMinutesWatched"],
+  ["views"]
+];
+
 const VIDEO_METRIC_SETS = [
   [
     "views",
@@ -75,6 +94,7 @@ type DailyMetricAccumulator = Partial<MetricTotals> & {
   channelId: string;
   videoId?: string;
   contentType?: VideoContentType;
+  countryCode?: string;
 };
 
 type SyncRunRecord = {
@@ -120,6 +140,7 @@ export async function syncYoutubeCmsAnalytics(input: SyncInput) {
     const channelIds = channelMetadata.map((channel) => channel.channelId);
     const channelMetrics: DailyMetricAccumulator[] = [];
     const contentTypeMetrics: DailyMetricAccumulator[] = [];
+    const countryMetrics: DailyMetricAccumulator[] = [];
     const videoMetrics: DailyMetricAccumulator[] = [];
     const videoMetadataById = new Map<string, YouTubeVideoMetadata>();
 
@@ -143,6 +164,7 @@ export async function syncYoutubeCmsAnalytics(input: SyncInput) {
     for (const group of channelReportGroups) {
       channelMetrics.push(...group.channelMetrics);
       contentTypeMetrics.push(...group.contentTypeMetrics);
+      countryMetrics.push(...group.countryMetrics);
       videoMetrics.push(...group.videoMetrics);
       for (const video of group.videoMetadata) {
         videoMetadataById.set(video.videoId, video);
@@ -170,8 +192,21 @@ export async function syncYoutubeCmsAnalytics(input: SyncInput) {
     await upsertVideoCatalog(supabase, videoMetadata);
     await upsertVideoMetrics(supabase, videoMetricsWithCatalog);
     await upsertContentTypeMetrics(supabase, contentTypeMetrics);
+    let countryMetricRowsSynced = countryMetrics.length;
+    try {
+      await upsertCountryMetrics(supabase, countryMetrics);
+    } catch (error) {
+      countryMetricRowsSynced = 0;
+      warnings.push(
+        error instanceof Error
+          ? `Country revenue metrics were not stored: ${error.message}`
+          : "Country revenue metrics were not stored."
+      );
+    }
 
     const finishedAt = new Date().toISOString();
+    const metricsRowsSynced =
+      channelMetrics.length + videoMetricsWithCatalog.length + contentTypeMetrics.length + countryMetricRowsSynced;
     const update = await supabase
       .from("youtube_analytics_sync_runs")
       .update({
@@ -179,7 +214,7 @@ export async function syncYoutubeCmsAnalytics(input: SyncInput) {
         finished_at: finishedAt,
         channels_synced: channelIds.length,
         videos_synced: metadataVideoIds.size,
-        metrics_rows_synced: channelMetrics.length + videoMetricsWithCatalog.length + contentTypeMetrics.length,
+        metrics_rows_synced: metricsRowsSynced,
         metadata: {
           warnings,
           channelCount: channelIds.length
@@ -193,7 +228,7 @@ export async function syncYoutubeCmsAnalytics(input: SyncInput) {
       status: "success",
       channelsSynced: channelIds.length,
       videosSynced: metadataVideoIds.size,
-      metricsRowsSynced: channelMetrics.length + videoMetricsWithCatalog.length + contentTypeMetrics.length,
+      metricsRowsSynced,
       warnings
     };
   } catch (error) {
@@ -232,6 +267,7 @@ function mergeReportRows(
           if (dimension === "channel") return row.channelId;
           if (dimension === "video") return row.videoId ?? "";
           if (dimension === "creatorContentType") return row.contentType ?? "unknown";
+          if (dimension === "country") return row.countryCode ?? "ZZ";
           return row.day;
         })
         .join("|");
@@ -269,6 +305,10 @@ function rowsFromReport(
 
     if (dimensions.includes("creatorContentType")) {
       accumulator.contentType = normalizeAnalyticsContentType(String(row.creatorContentType ?? ""));
+    }
+
+    if (dimensions.includes("country")) {
+      accumulator.countryCode = normalizeCountryCode(row.country);
     }
 
     if (metrics.has("views")) accumulator.views = readNumber(row, "views");
@@ -325,7 +365,7 @@ async function fetchChannelReports(input: {
   const channelFilter = `channel==${input.channelId}`;
 
   try {
-    const [channelCore, channelRevenue, contentTypeReport, videoReportGroup] = await Promise.all([
+    const [channelCore, channelRevenue, contentTypeReport, countryReportGroup, videoReportGroup] = await Promise.all([
       fetchAnalyticsReportWithFallback({
         accessToken: input.accessToken,
         config: input.config,
@@ -366,6 +406,13 @@ async function fetchChannelReports(input: {
         `${input.channelId} creatorContentType`,
         input.warnings
       ),
+      fetchCountryPeriodReports({
+        accessToken: input.accessToken,
+        channelId: input.channelId,
+        config: input.config,
+        periods: getVideoMetricPeriods(input.startDate, input.endDate),
+        warnings: input.warnings
+      }),
       fetchVideoPeriodReports({
         accessToken: input.accessToken,
         channelId: input.channelId,
@@ -381,6 +428,7 @@ async function fetchChannelReports(input: {
         rowsFromReport(["day", "creatorContentType"], contentTypeReport),
         input.channelId
       ),
+      countryMetrics: countryReportGroup.metrics,
       videoMetrics: videoReportGroup.metrics,
       videoMetadata: videoReportGroup.metadata
     };
@@ -390,8 +438,41 @@ async function fetchChannelReports(input: {
         ? `${input.channelId} core metrics skipped: ${error.message}`
         : `${input.channelId} core metrics skipped.`
     );
-    return { channelMetrics: [], contentTypeMetrics: [], videoMetrics: [], videoMetadata: [] };
+    return { channelMetrics: [], contentTypeMetrics: [], countryMetrics: [], videoMetrics: [], videoMetadata: [] };
   }
+}
+
+async function fetchCountryPeriodReports(input: {
+  accessToken: string;
+  channelId: string;
+  config: ReturnType<typeof getYouTubeCmsConfig>;
+  periods: Array<{ startDate: string; endDate: string }>;
+  warnings: string[];
+}) {
+  const periodRows = await mapWithConcurrency(input.periods, 2, async (period) => {
+    const countryReport = await fetchOptionalReport(
+      () =>
+        fetchAnalyticsReportWithFallback({
+          accessToken: input.accessToken,
+          config: input.config,
+          startDate: period.startDate,
+          endDate: period.endDate,
+          dimensions: ["country"],
+          metricSets: COUNTRY_METRIC_SETS,
+          filters: `channel==${input.channelId}`,
+          sort: ["-estimatedRevenue"]
+        }),
+      `${input.channelId} country ${period.startDate} to ${period.endDate}`,
+      input.warnings
+    );
+
+    return rowsFromReport(["country"], countryReport, {
+      defaultDay: period.startDate,
+      channelId: input.channelId
+    });
+  });
+
+  return { metrics: periodRows.flat() };
 }
 
 async function fetchVideoPeriodReports(input: {
@@ -588,6 +669,30 @@ async function upsertContentTypeMetrics(
   await upsertInChunks(supabase, "youtube_content_type_daily_metrics", rows, "day,channel_id,content_type");
 }
 
+async function upsertCountryMetrics(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  metrics: DailyMetricAccumulator[]
+) {
+  const rows = metrics
+    .filter((row) => row.countryCode && row.channelId)
+    .map((row) => ({
+      day: row.day,
+      channel_id: row.channelId,
+      country_code: row.countryCode ?? "ZZ",
+      views: row.views ?? 0,
+      estimated_minutes_watched: row.estimatedMinutesWatched ?? 0,
+      estimated_revenue: row.estimatedRevenue ?? 0,
+      estimated_ad_revenue: row.estimatedAdRevenue ?? 0,
+      gross_revenue: row.grossRevenue ?? 0,
+      monetized_playbacks: row.monetizedPlaybacks ?? 0,
+      ad_impressions: row.adImpressions ?? 0,
+      playback_based_cpm: row.playbackBasedCpm ?? 0,
+      updated_at: new Date().toISOString()
+    }));
+
+  await upsertInChunks(supabase, "youtube_country_daily_metrics", rows, "day,channel_id,country_code");
+}
+
 async function upsertInChunks(
   supabase: ReturnType<typeof createSupabaseAdminClient>,
   table: string,
@@ -618,6 +723,11 @@ function readNumber(row: AnalyticsReportRow, key: string) {
   if (value === null || value === undefined || value === "") return 0;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeCountryCode(value: unknown) {
+  const code = String(value ?? "").trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(code) ? code : "ZZ";
 }
 
 function getErrorMessage(error: unknown) {

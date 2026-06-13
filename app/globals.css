@@ -209,7 +209,8 @@
     font-size: 15px !important;
   }
 
-  .youtube-report-page .min-w-\[44rem\] {
+  .youtube-report-page .min-w-\[44rem\],
+  .youtube-report-page .min-w-\[42rem\] {
     min-width: 0 !important;
   }
 

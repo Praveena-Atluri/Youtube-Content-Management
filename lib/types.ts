@@ -26,6 +26,11 @@ export type FeedDefinition = {
   url: string;
 };
 
+export type SourceFilterOption = {
+  label: string;
+  source: string;
+};
+
 export function categoryLabel(value: CategoryFilter) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }

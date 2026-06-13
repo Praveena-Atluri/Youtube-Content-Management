@@ -50,6 +50,11 @@ export type VideoPerformanceRow = MetricTotals & {
   cohort: Exclude<VideoCohort, "all">;
 };
 
+export type CountryRevenueRow = MetricTotals & {
+  countryCode: string;
+  countryName: string;
+};
+
 export type YoutubePerformanceDashboardData = {
   schemaReady: boolean;
   selectedMonth: string;
@@ -67,6 +72,7 @@ export type YoutubePerformanceDashboardData = {
     netSubscribers: number;
   };
   longShortSplit: Array<{ contentType: VideoContentType; views: number; revenue: number }>;
+  countryRevenueBreakdown: CountryRevenueRow[];
   cohortSummary: {
     old: MetricTotals;
     recent: MetricTotals;
@@ -186,6 +192,20 @@ type ContentTypeMetricRow = {
   monetized_playbacks: number | string | null;
 };
 
+type CountryMetricRow = {
+  day: string;
+  channel_id: string;
+  country_code: string;
+  views: number | string | null;
+  estimated_minutes_watched: number | string | null;
+  estimated_revenue: number | string | null;
+  estimated_ad_revenue: number | string | null;
+  gross_revenue: number | string | null;
+  monetized_playbacks: number | string | null;
+  ad_impressions: number | string | null;
+  playback_based_cpm: number | string | null;
+};
+
 const VALID_CONTENT_TYPES: ContentTypeFilter[] = ["all", "short", "long", "live", "unknown"];
 const VALID_COHORTS: VideoCohort[] = ["all", "recent", "old"];
 const SUPABASE_PAGE_SIZE = 1000;
@@ -296,6 +316,7 @@ export async function getYoutubePerformanceDashboard(
           )
         },
         longShortSplit: [],
+        countryRevenueBreakdown: [],
         cohortSummary: { old: createEmptyTotals(), recent: createEmptyTotals() },
         topRevenueVideos: [],
         topViewedVideos: [],
@@ -309,11 +330,13 @@ export async function getYoutubePerformanceDashboard(
       };
     }
 
-    const [currentVideos, previousVideos, currentContentTypeRows, previousContentTypeRows] = await Promise.all([
+    const [currentVideos, previousVideos, currentContentTypeRows, previousContentTypeRows, currentCountryRows] =
+      await Promise.all([
       getVideoPerformanceRows(supabase, currentRange.startDate, currentRange.endDate, filters, channels),
       getVideoPerformanceRows(supabase, previousRange.startDate, previousRange.endDate, filters, channels),
       getContentTypeMetrics(supabase, currentRange.startDate, currentRange.endDate, filters.channelId),
-      getContentTypeMetrics(supabase, previousRange.startDate, previousRange.endDate, filters.channelId)
+      getContentTypeMetrics(supabase, previousRange.startDate, previousRange.endDate, filters.channelId),
+      getCountryMetrics(supabase, currentRange.startDate, currentRange.endDate, filters.channelId)
     ]);
 
     const scopedCurrentTotals = getScopedTotals(filters, {
@@ -369,6 +392,7 @@ export async function getYoutubePerformanceDashboard(
         )
       },
       longShortSplit,
+      countryRevenueBreakdown: buildCountryRevenueBreakdown(currentCountryRows).slice(0, 10),
       cohortSummary,
       topRevenueVideos: sortByMetric(currentVideos.filteredRows, "estimatedRevenue").slice(0, 10),
       topViewedVideos: sortByMetric(currentVideos.filteredRows, "views").slice(0, 10),
@@ -662,6 +686,46 @@ async function getContentTypeMetrics(
   return rows;
 }
 
+async function getCountryMetrics(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  startDate: string,
+  endDate: string,
+  channelId: string
+) {
+  const rows: CountryMetricRow[] = [];
+  let offset = 0;
+
+  while (true) {
+    let query = supabase
+      .from("youtube_country_daily_metrics")
+      .select(
+        "day,channel_id,country_code,views,estimated_minutes_watched,estimated_revenue,estimated_ad_revenue,gross_revenue,monetized_playbacks,ad_impressions,playback_based_cpm"
+      )
+      .gte("day", startDate)
+      .lt("day", endDate)
+      .order("day", { ascending: true })
+      .order("channel_id", { ascending: true })
+      .order("country_code", { ascending: true })
+      .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
+
+    if (channelId !== "all") {
+      query = query.eq("channel_id", channelId);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.warn(`Country revenue metrics unavailable: ${error.message}`);
+      return [];
+    }
+
+    rows.push(...((data ?? []) as CountryMetricRow[]));
+    if (!data || data.length < SUPABASE_PAGE_SIZE) break;
+    offset += SUPABASE_PAGE_SIZE;
+  }
+
+  return rows;
+}
+
 async function getVideoPerformanceRows(
   supabase: ReturnType<typeof createSupabaseAdminClient>,
   startDate: string,
@@ -941,6 +1005,33 @@ function buildContentTypeSplit(rows: ContentTypeMetricRow[], filters: YoutubePer
   return Array.from(split.values()).sort((left, right) => right.views - left.views);
 }
 
+function buildCountryRevenueBreakdown(rows: CountryMetricRow[]) {
+  const countries = new Map<string, CountryRevenueRow>();
+
+  for (const row of rows) {
+    const countryCode = normalizeCountryCode(row.country_code);
+    const item = countries.get(countryCode) ?? {
+      ...createEmptyTotals(),
+      countryCode,
+      countryName: formatCountryName(countryCode)
+    };
+
+    addMetricTotals(item, {
+      views: toNumber(row.views),
+      estimatedMinutesWatched: toNumber(row.estimated_minutes_watched),
+      estimatedRevenue: toNumber(row.estimated_revenue),
+      estimatedAdRevenue: toNumber(row.estimated_ad_revenue),
+      grossRevenue: toNumber(row.gross_revenue),
+      monetizedPlaybacks: toNumber(row.monetized_playbacks),
+      adImpressions: toNumber(row.ad_impressions),
+      playbackBasedCpm: toNumber(row.playback_based_cpm)
+    });
+    countries.set(countryCode, item);
+  }
+
+  return Array.from(countries.values()).sort((left, right) => right.estimatedRevenue - left.estimatedRevenue);
+}
+
 function buildContentTypeComparison(
   primaryRows: ContentTypeMetricRow[],
   comparisonRows: ContentTypeMetricRow[],
@@ -1029,6 +1120,21 @@ function sortByMetric(rows: VideoPerformanceRow[], metric: keyof Pick<MetricTota
   return [...rows].sort((left, right) => right[metric] - left[metric]);
 }
 
+function normalizeCountryCode(value: string | null | undefined) {
+  const code = String(value ?? "").trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(code) ? code : "ZZ";
+}
+
+function formatCountryName(countryCode: string) {
+  if (countryCode === "ZZ") return "Unknown";
+
+  try {
+    return new Intl.DisplayNames(["en"], { type: "region" }).of(countryCode) ?? countryCode;
+  } catch {
+    return countryCode;
+  }
+}
+
 function hasVideoPerformanceMetrics(row: VideoPerformanceRow) {
   return row.views > 0 || row.estimatedMinutesWatched > 0 || row.estimatedRevenue > 0;
 }
@@ -1090,6 +1196,7 @@ function emptyDashboard(filters: YoutubePerformanceFilters): YoutubePerformanceD
     previousChannelSubscriberTotals: createEmptyTotals(),
     growth: { views: 0, revenue: 0, netSubscribers: 0 },
     longShortSplit: [],
+    countryRevenueBreakdown: [],
     cohortSummary: { old: createEmptyTotals(), recent: createEmptyTotals() },
     topRevenueVideos: [],
     topViewedVideos: [],

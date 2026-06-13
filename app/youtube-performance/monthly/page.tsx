@@ -7,6 +7,7 @@ import {
   DollarSign,
   Eye,
   Film,
+  Globe2,
   LineChart,
   PlaySquare,
   TrendingDown,
@@ -18,10 +19,11 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
+import { YoutubeAutoSubmitForm } from "@/components/youtube-auto-submit-form";
 import { YoutubeChannelSelect } from "@/components/youtube-channel-select";
+import { YoutubeFilterLoadingBoundary } from "@/components/youtube-filter-loading-boundary";
 import { YoutubePdfDownloadButton } from "@/components/youtube-pdf-download-button";
 import { YoutubeSyncActions } from "@/components/youtube-sync-actions";
-import { YoutubeSubmitButton } from "@/components/youtube-submit-button";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +31,7 @@ import { isYouTubeCmsConfigured } from "@/lib/youtube-cms-api";
 import {
   getYoutubePerformanceDashboard,
   normalizeYoutubePerformanceFilters,
+  type CountryRevenueRow,
   type ContentTypeFilter,
   type VideoPerformanceRow
 } from "@/lib/youtube-performance";
@@ -127,7 +130,7 @@ export default async function YoutubePerformancePage({ searchParams }: YoutubePe
         ) : null}
 
         <section className="youtube-print-hidden rounded-lg border bg-card/95 p-4 shadow-sm">
-          <form className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_auto]" action="/youtube-performance/monthly" method="get">
+          <YoutubeAutoSubmitForm action="/youtube-performance/monthly" className="grid gap-3 md:grid-cols-4">
             <FilterSelect label="Month" name="month" value={dashboard.selectedMonth}>
               {dashboard.availableMonths.map((month) => (
                 <option key={month} value={month}>
@@ -156,31 +159,28 @@ export default async function YoutubePerformancePage({ searchParams }: YoutubePe
               <option value="recent">Selected and previous month</option>
               <option value="old">Older videos</option>
             </FilterSelect>
-
-            <div className="flex items-end">
-              <YoutubeSubmitButton />
-            </div>
-          </form>
+          </YoutubeAutoSubmitForm>
         </section>
 
-        {canEvaluateDataCoverage && !hasComparisonData ? (
-          <>
-            <StatusPanel title="Sync this month" message={missingDataMessage} />
-            <section className="youtube-print-hidden">
-              <SyncPanel
-                channelId={dashboard.filters.channelId}
-                startDate={selectedMonthRange.startDate}
-                endDate={selectedMonthRange.analyticsEndDate}
-                monthLabel={formatMonthLabel(dashboard.selectedMonth)}
-                channelTitle={selectedChannel?.title ?? "this channel"}
-                disabled={!dashboard.schemaReady || !cmsConfigured || !hasSelectedChannel}
-              />
-            </section>
-          </>
-        ) : null}
+        <YoutubeFilterLoadingBoundary>
+          {canEvaluateDataCoverage && !hasComparisonData ? (
+            <>
+              <StatusPanel title="Sync this month" message={missingDataMessage} />
+              <section className="youtube-print-hidden">
+                <SyncPanel
+                  channelId={dashboard.filters.channelId}
+                  startDate={selectedMonthRange.startDate}
+                  endDate={selectedMonthRange.analyticsEndDate}
+                  monthLabel={formatMonthLabel(dashboard.selectedMonth)}
+                  channelTitle={selectedChannel?.title ?? "this channel"}
+                  disabled={!dashboard.schemaReady || !cmsConfigured || !hasSelectedChannel}
+                />
+              </section>
+            </>
+          ) : null}
 
-        {hasComparisonData ? (
-          <>
+          {hasComparisonData ? (
+            <>
         <section className="youtube-report-kpi-grid grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             title="Views"
@@ -259,6 +259,13 @@ export default async function YoutubePerformancePage({ searchParams }: YoutubePe
           </Card>
         </section>
 
+        <section>
+          <CountryRevenueCard
+            rows={dashboard.countryRevenueBreakdown}
+            totalRevenue={dashboard.currentTotals.estimatedRevenue}
+          />
+        </section>
+
         <section className="youtube-report-two-col grid gap-4 md:grid-cols-2">
           <CohortCard
             title="Old Videos Performance"
@@ -321,8 +328,9 @@ export default async function YoutubePerformancePage({ searchParams }: YoutubePe
             disabled={!dashboard.schemaReady || !cmsConfigured || !hasSelectedChannel}
           />
         </section>
-          </>
-        ) : null}
+            </>
+          ) : null}
+        </YoutubeFilterLoadingBoundary>
       </div>
     </main>
   );
@@ -428,6 +436,59 @@ function CohortCard({
             <MiniMetric label="Watch time" value={`${formatCompactNumber(totals.estimatedMinutesWatched / 60)} hrs`} />
             <MiniMetric label="Revenue" value={formatCurrency(totals.estimatedRevenue)} />
           </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CountryRevenueCard({ rows, totalRevenue }: { rows: CountryRevenueRow[]; totalRevenue: number }) {
+  return (
+    <Card className="shadow-sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Globe2 className="size-4 text-primary" />
+          Country Revenue Breakup
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="overflow-x-auto">
+        {rows.length > 0 ? (
+          <div className="min-w-[42rem] space-y-2">
+            <div className="grid grid-cols-[minmax(10rem,1fr)_7rem_7rem_6rem_5rem] gap-3 px-3 text-xs font-semibold text-muted-foreground">
+              <span>Country</span>
+              <span className="text-right">Revenue</span>
+              <span className="text-right">Views</span>
+              <span className="text-right">RPM</span>
+              <span className="text-right">Share</span>
+            </div>
+            {rows.map((row) => (
+              <div
+                key={row.countryCode}
+                className="grid grid-cols-[minmax(10rem,1fr)_7rem_7rem_6rem_5rem] items-center gap-3 rounded-lg border bg-background/70 p-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold">{row.countryName}</p>
+                  <p className="text-xs text-muted-foreground">{row.countryCode}</p>
+                </div>
+                <span className="whitespace-nowrap text-right text-sm font-black tabular-nums">
+                  {formatCurrency(row.estimatedRevenue)}
+                </span>
+                <span className="whitespace-nowrap text-right text-sm font-semibold tabular-nums text-muted-foreground">
+                  {formatCompactNumber(row.views)}
+                </span>
+                <span className="whitespace-nowrap text-right text-sm font-semibold tabular-nums text-muted-foreground">
+                  {formatCurrency(calculateRevenuePerThousandViews(row))}
+                </span>
+                <span className="whitespace-nowrap text-right text-sm font-semibold tabular-nums text-muted-foreground">
+                  {formatPercent(calculateRevenueShare(row.estimatedRevenue, totalRevenue))}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-lg border bg-background/70 p-4 text-sm text-muted-foreground">
+            No country revenue data found for this month. Sync this month again to populate the country breakup.
+          </p>
         )}
       </CardContent>
     </Card>
@@ -609,6 +670,10 @@ function formatSignedPercent(value: number) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
+function formatPercent(value: number) {
+  return `${value.toFixed(1)}%`;
+}
+
 function formatMonthLabel(month: string) {
   const [year, monthNumber] = month.split("-").map(Number);
   return new Intl.DateTimeFormat("en-IN", { month: "short", year: "numeric" }).format(
@@ -622,4 +687,14 @@ function calculatePlaybackCpm(totals: MetricTotals) {
   }
 
   return totals.playbackBasedCpm;
+}
+
+function calculateRevenuePerThousandViews(totals: Pick<MetricTotals, "estimatedRevenue" | "views">) {
+  if (totals.views <= 0) return 0;
+  return (totals.estimatedRevenue / totals.views) * 1000;
+}
+
+function calculateRevenueShare(revenue: number, totalRevenue: number) {
+  if (totalRevenue <= 0) return 0;
+  return (revenue / totalRevenue) * 100;
 }
