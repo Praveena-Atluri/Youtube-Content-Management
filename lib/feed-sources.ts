@@ -109,6 +109,24 @@ export const DEFAULT_FEED_SOURCES: FeedDefinition[] = [
     label: "Bhakthi TV",
     url: "https://www.bhakthitv.in/feed",
     categoryHint: "devotional"
+  },
+  {
+    source: "Go Spiritual India",
+    label: "Go Spiritual India",
+    url: "https://gospiritualindia.in/tag/spiritual-india/feed/",
+    categoryHint: "devotional"
+  },
+  {
+    source: "NT News",
+    label: "NT News - Devotional",
+    url: "https://www.ntnews.com/devotional/feed",
+    categoryHint: "devotional"
+  },
+  {
+    source: "NTV Telugu",
+    label: "NTV Telugu - Bhakthi",
+    url: "https://ntvtelugu.com/bhakthi/feed",
+    categoryHint: "devotional"
   }
 ];
 

@@ -225,6 +225,9 @@ values
   ('ABP Live Telugu', 'ABP Live - Spirituality',    'https://telugu.abplive.com/spirituality/feed',                'devotional', true, 220),
   ('TV9 Telugu',      'TV9 Telugu - Spiritual',     'https://tv9telugu.com/spiritual/feed',                        'devotional', true, 221),
   ('Bhakthi TV',      'Bhakthi TV',                 'https://www.bhakthitv.in/feed',                               'devotional', true, 222),
+  ('Go Spiritual India', 'Go Spiritual India',       'https://gospiritualindia.in/tag/spiritual-india/feed/',       'devotional', true, 223),
+  ('NT News',         'NT News - Devotional',       'https://www.ntnews.com/devotional/feed',                      'devotional', true, 224),
+  ('NTV Telugu',      'NTV Telugu - Bhakthi',       'https://ntvtelugu.com/bhakthi/feed',                          'devotional', true, 225),
   -- tech: ABP Live
   ('ABP Live Telugu', 'ABP Live - Tech',            'https://telugu.abplive.com/tech/feed',                        'tech', true, 180),
   ('ABP Live Telugu', 'ABP Live - Gadgets',         'https://telugu.abplive.com/tech/gadgets/feed',                'tech', true, 181),

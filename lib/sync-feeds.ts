@@ -91,16 +91,16 @@ function inferTaxonomy(
     return { category: "devotional" };
   }
 
-  if (includesAny(devotionalKeywords)) {
-    return { category: "devotional" };
-  }
-
   if (includesAny(sportsKeywords)) {
     return { category: "sports" };
   }
 
   if (includesAny(movieKeywords)) {
     return { category: "movies" };
+  }
+
+  if (includesAny(devotionalKeywords)) {
+    return { category: "devotional" };
   }
 
   return { category: "news" };
@@ -184,7 +184,7 @@ export async function syncFeeds() {
   const existingStories = await supabase
     .from("trending_topics")
     .select("title, metadata")
-    .limit(1000);
+    .limit(1500);
 
   if (existingStories.error) {
     throw existingStories.error;

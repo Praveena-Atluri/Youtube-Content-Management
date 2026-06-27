@@ -29,7 +29,10 @@ const DEFAULT_FEEDS = [
   ["Wired", "Wired", "https://www.wired.com/feed", "tech"],
   ["ABP Live Telugu", "ABP Live - Spirituality", "https://telugu.abplive.com/spirituality/feed", "devotional"],
   ["TV9 Telugu", "TV9 Telugu - Spiritual", "https://tv9telugu.com/spiritual/feed", "devotional"],
-  ["Bhakthi TV", "Bhakthi TV", "https://www.bhakthitv.in/feed", "devotional"]
+  ["Bhakthi TV", "Bhakthi TV", "https://www.bhakthitv.in/feed", "devotional"],
+  ["Go Spiritual India", "Go Spiritual India", "https://gospiritualindia.in/tag/spiritual-india/feed/", "devotional"],
+  ["NT News", "NT News - Devotional", "https://www.ntnews.com/devotional/feed", "devotional"],
+  ["NTV Telugu", "NTV Telugu - Bhakthi", "https://ntvtelugu.com/bhakthi/feed", "devotional"]
 ] as const;
 
 const DEFAULT_MOVIE_KEYWORDS = [
@@ -89,9 +92,6 @@ const DEFAULT_DEVOTIONAL_KEYWORDS = [
   "puja",
   "pooja",
   "bhakti",
-  "hindu",
-  "god",
-  "goddess",
   "pilgrimage",
   "yatra",
   "astrology",
@@ -419,12 +419,12 @@ function inferTaxonomy(
     return { category: "devotional" };
   }
 
-  if (includesAny(devotionalKeywords)) {
-    return { category: "devotional" };
-  }
-
   if (includesAny(movieKeywords)) {
     return { category: "movies" };
+  }
+
+  if (includesAny(devotionalKeywords)) {
+    return { category: "devotional" };
   }
 
   return { category: "news" };
@@ -460,7 +460,7 @@ Deno.serve(async () => {
   const { data: existingRows, error: existingError } = await supabase
     .from("trending_topics")
     .select("metadata")
-    .limit(1000);
+    .limit(1500);
 
   if (existingError) {
     return new Response(JSON.stringify({ error: existingError.message }), {
