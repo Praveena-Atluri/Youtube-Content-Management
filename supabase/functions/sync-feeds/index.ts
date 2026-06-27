@@ -1,5 +1,16 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 
+type CategoryHint = "news" | "movies" | "tech" | "sports" | "business" | "devotional";
+
+const VALID_CATEGORY_HINTS: CategoryHint[] = [
+  "news",
+  "movies",
+  "tech",
+  "sports",
+  "business",
+  "devotional"
+];
+
 const DEFAULT_FEEDS = [
   ["NTV", "NTV Telugu", "https://ntvtelugu.com/feed", "news"],
   ["V6", "V6 Velugu", "https://www.v6velugu.com/feed", "news"],
@@ -15,7 +26,10 @@ const DEFAULT_FEEDS = [
   ["404 Media", "404 Media", "https://www.404media.co/rss/", "tech"],
   ["Ars Technica", "Ars Technica", "https://arstechnica.com/feed/", "tech"],
   ["TechCrunch", "TechCrunch", "https://techcrunch.com/feed/", "tech"],
-  ["Wired", "Wired", "https://www.wired.com/feed", "tech"]
+  ["Wired", "Wired", "https://www.wired.com/feed", "tech"],
+  ["ABP Live Telugu", "ABP Live - Spirituality", "https://telugu.abplive.com/spirituality/feed", "devotional"],
+  ["TV9 Telugu", "TV9 Telugu - Spiritual", "https://tv9telugu.com/spiritual/feed", "devotional"],
+  ["Bhakthi TV", "Bhakthi TV", "https://www.bhakthitv.in/feed", "devotional"]
 ] as const;
 
 const DEFAULT_MOVIE_KEYWORDS = [
@@ -59,6 +73,58 @@ const DEFAULT_MOVIE_KEYWORDS = [
   "ట్రైలర్",
   "టీజర్",
   "ఓటిటి"
+] as const;
+
+const DEFAULT_DEVOTIONAL_KEYWORDS = [
+  "devotional",
+  "spirituality",
+  "spiritual",
+  "temple",
+  "tirumala",
+  "tirupati",
+  "ttd",
+  "srivari",
+  "darshan",
+  "darshanam",
+  "puja",
+  "pooja",
+  "bhakti",
+  "hindu",
+  "god",
+  "goddess",
+  "pilgrimage",
+  "yatra",
+  "astrology",
+  "horoscope",
+  "zodiac",
+  "panchangam",
+  "vastu",
+  "jyotish",
+  "mantra",
+  "sloka",
+  "bhagavad gita",
+  "ramayanam",
+  "mahabharatam",
+  "ఆధ్యాత్మికం",
+  "ఆధ్యాత్మిక",
+  "భక్తి",
+  "దేవాలయం",
+  "ఆలయం",
+  "గుడి",
+  "పూజ",
+  "దర్శనం",
+  "తిరుమల",
+  "తిరుపతి",
+  "శ్రీవారి",
+  "తితిదే",
+  "రాశి ఫలాలు",
+  "జాతకం",
+  "పంచాంగం",
+  "వాస్తు",
+  "మంత్రం",
+  "శ్లోకం",
+  "రామాయణం",
+  "మహాభారతం"
 ] as const;
 
 const supabase = createClient(
@@ -150,6 +216,17 @@ function getMovieKeywords() {
     : [...DEFAULT_MOVIE_KEYWORDS];
 }
 
+function getDevotionalKeywords() {
+  const configuredKeywords = (Deno.env.get("DEVOTIONAL_KEYWORDS") ?? "")
+    .split(/[\n,]+/)
+    .map((keyword) => keyword.trim())
+    .filter(Boolean);
+
+  return configuredKeywords.length > 0
+    ? configuredKeywords
+    : [...DEFAULT_DEVOTIONAL_KEYWORDS];
+}
+
 async function getActiveFeedSources() {
   const response = await supabase
     .from("feed_sources")
@@ -162,14 +239,18 @@ async function getActiveFeedSources() {
     return DEFAULT_FEEDS;
   }
 
-  return response.data.map((row) => [
-    row.source,
-    row.label,
-    row.url,
-    row.category_hint === "tech" || row.category_hint === "movies"
+  return response.data.map((row) => {
+    const categoryHint = VALID_CATEGORY_HINTS.includes(row.category_hint)
       ? row.category_hint
-      : "news"
-  ]) as Array<[string, string, string, "news" | "movies" | "tech"]>;
+      : "news";
+
+    return [
+      row.source,
+      row.label,
+      row.url,
+      categoryHint
+    ];
+  }) as Array<[string, string, string, CategoryHint]>;
 }
 
 async function decodeGoogleNewsBatchExecute(id: string) {
@@ -302,7 +383,8 @@ function inferTaxonomy(
   text: string,
   articleUrl: string,
   fallback: string,
-  movieKeywords: readonly string[]
+  movieKeywords: readonly string[],
+  devotionalKeywords: readonly string[]
 ) {
   const normalized = `${text} ${articleUrl}`.toLowerCase();
   const escapeRegex = (value: string) =>
@@ -319,6 +401,26 @@ function inferTaxonomy(
 
   if (fallback === "tech") {
     return { category: "tech" };
+  }
+
+  if (fallback === "movies") {
+    return { category: "movies" };
+  }
+
+  if (fallback === "sports") {
+    return { category: "sports" };
+  }
+
+  if (fallback === "business") {
+    return { category: "business" };
+  }
+
+  if (fallback === "devotional") {
+    return { category: "devotional" };
+  }
+
+  if (includesAny(devotionalKeywords)) {
+    return { category: "devotional" };
   }
 
   if (includesAny(movieKeywords)) {
@@ -341,6 +443,7 @@ function isWithinLast24Hours(publishedAt: string) {
 Deno.serve(async () => {
   const feeds = await getActiveFeedSources();
   const movieKeywords = getMovieKeywords();
+  const devotionalKeywords = getDevotionalKeywords();
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { error: deleteError, count: deletedCount } = await supabase
     .from("trending_topics")
@@ -402,7 +505,8 @@ Deno.serve(async () => {
         `${item.title} ${item.summary} ${item.contentBody}`,
         articleUrl,
         fallbackCategory,
-        movieKeywords
+        movieKeywords,
+        devotionalKeywords
       );
 
       if (articleUrl && existingLinks.has(articleUrl)) {

@@ -91,7 +91,34 @@ export const DEFAULT_FEED_SOURCES: FeedDefinition[] = [
     label: "Wired",
     url: "https://www.wired.com/feed",
     categoryHint: "tech"
+  },
+  {
+    source: "ABP Live Telugu",
+    label: "ABP Live - Spirituality",
+    url: "https://telugu.abplive.com/spirituality/feed",
+    categoryHint: "devotional"
+  },
+  {
+    source: "TV9 Telugu",
+    label: "TV9 Telugu - Spiritual",
+    url: "https://tv9telugu.com/spiritual/feed",
+    categoryHint: "devotional"
+  },
+  {
+    source: "Bhakthi TV",
+    label: "Bhakthi TV",
+    url: "https://www.bhakthitv.in/feed",
+    categoryHint: "devotional"
   }
+];
+
+const CATEGORY_ORDER: TrendingCategory[] = [
+  "news",
+  "movies",
+  "sports",
+  "business",
+  "devotional",
+  "tech"
 ];
 
 type FeedSourceRow = {
@@ -113,7 +140,6 @@ export async function getActiveCategories(): Promise<CategoryFilter[]> {
   }
 
   const hints = [...new Set(response.data.map((r) => r.category_hint as string))];
-  const CATEGORY_ORDER: TrendingCategory[] = ["news", "movies", "sports", "business", "tech"];
   const valid = CATEGORY_ORDER.filter((c) => hints.includes(c));
 
   return ["all", ...valid] as CategoryFilter[];
@@ -143,7 +169,7 @@ export async function getActiveFeedSources(): Promise<FeedDefinition[]> {
     label: row.label,
     url: row.url,
     categoryHint:
-      (["tech", "movies", "sports", "business"] as string[]).includes(row.category_hint)
+      (CATEGORY_ORDER as string[]).includes(row.category_hint)
         ? (row.category_hint as TrendingCategory)
         : "news"
   }));

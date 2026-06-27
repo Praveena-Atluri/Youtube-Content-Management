@@ -1,4 +1,5 @@
 import { getActiveFeedSources } from "@/lib/feed-sources";
+import { getDevotionalKeywords } from "@/lib/devotional-keywords";
 import { getMovieKeywords } from "@/lib/movie-keywords";
 import { getSportsKeywords } from "@/lib/sports-keywords";
 import { fetchFeedItems } from "@/lib/rss";
@@ -52,6 +53,7 @@ function inferTaxonomy(
   articleUrl: string,
   fallback: TrendingCategory,
   movieKeywords: string[],
+  devotionalKeywords: string[],
   sportsKeywords: string[]
 ): {
   category: TrendingCategory;
@@ -85,6 +87,14 @@ function inferTaxonomy(
     return { category: "business" };
   }
 
+  if (fallback === "devotional") {
+    return { category: "devotional" };
+  }
+
+  if (includesAny(devotionalKeywords)) {
+    return { category: "devotional" };
+  }
+
   if (includesAny(sportsKeywords)) {
     return { category: "sports" };
   }
@@ -101,6 +111,7 @@ const CATEGORY_BOOST: Record<string, number> = {
   movies:   12,
   sports:   12,
   business: 10,
+  devotional: 10,
   tech:     8,
 };
 
@@ -164,6 +175,7 @@ export async function syncFeeds() {
   const syncTime = new Date().toISOString();
   const feedSources = await getActiveFeedSources();
   const movieKeywords = getMovieKeywords();
+  const devotionalKeywords = getDevotionalKeywords();
   const sportsKeywords = getSportsKeywords();
   const deleted = await deleteStaleStories();
   const existingLinks = new Set<string>();
@@ -274,6 +286,7 @@ export async function syncFeeds() {
       candidate.articleUrl,
       candidate.feed.categoryHint,
       movieKeywords,
+      devotionalKeywords,
       sportsKeywords
     );
 

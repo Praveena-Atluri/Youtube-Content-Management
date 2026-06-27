@@ -11,9 +11,11 @@ create extension if not exists pgcrypto;
 
 do $$ begin
   if not exists (select 1 from pg_type where typname = 'trending_category_v3') then
-    create type trending_category_v3 as enum ('news', 'movies', 'tech', 'sports', 'business');
+    create type trending_category_v3 as enum ('news', 'movies', 'tech', 'sports', 'business', 'devotional');
   end if;
 end $$;
+
+alter type trending_category_v3 add value if not exists 'devotional';
 
 -- ============================================================
 -- Tables
@@ -35,12 +37,19 @@ create table if not exists public.feed_sources (
   source         text not null,
   label          text not null,
   url            text not null unique,
-  category_hint  text not null check (category_hint in ('news', 'movies', 'tech', 'sports', 'business')),
+  category_hint  text not null check (category_hint in ('news', 'movies', 'tech', 'sports', 'business', 'devotional')),
   active         boolean not null default true,
   display_order  integer not null default 0,
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now()
 );
+
+alter table public.feed_sources
+  drop constraint if exists feed_sources_category_hint_check;
+
+alter table public.feed_sources
+  add constraint feed_sources_category_hint_check
+  check (category_hint in ('news', 'movies', 'tech', 'sports', 'business', 'devotional'));
 
 create table if not exists public.youtube_videos (
   id             uuid primary key default gen_random_uuid(),
@@ -212,6 +221,10 @@ values
   ('ABP Live Telugu', 'ABP Live - Mutual Funds',    'https://telugu.abplive.com/business/mutual-funds/feed',       'business', true, 212),
   ('ABP Live Telugu', 'ABP Live - IPO',             'https://telugu.abplive.com/business/ipo/feed',                'business', true, 213),
   ('ABP Live Telugu', 'ABP Live - Budget',          'https://telugu.abplive.com/business/budget/feed',             'business', true, 214),
+  -- devotional: ABP Live
+  ('ABP Live Telugu', 'ABP Live - Spirituality',    'https://telugu.abplive.com/spirituality/feed',                'devotional', true, 220),
+  ('TV9 Telugu',      'TV9 Telugu - Spiritual',     'https://tv9telugu.com/spiritual/feed',                        'devotional', true, 221),
+  ('Bhakthi TV',      'Bhakthi TV',                 'https://www.bhakthitv.in/feed',                               'devotional', true, 222),
   -- tech: ABP Live
   ('ABP Live Telugu', 'ABP Live - Tech',            'https://telugu.abplive.com/tech/feed',                        'tech', true, 180),
   ('ABP Live Telugu', 'ABP Live - Gadgets',         'https://telugu.abplive.com/tech/gadgets/feed',                'tech', true, 181),

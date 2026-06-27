@@ -251,7 +251,7 @@ export function DashboardShell({
           <div>
             <h1 className="text-xl font-extrabold">Media Radar</h1>
             <p className="text-sm text-muted-foreground">
-              Track fresh stories across news, movies, sports, business and tech.
+              Track fresh stories across news, movies, sports, business, devotional and tech.
             </p>
           </div>
         </div>

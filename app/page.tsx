@@ -79,7 +79,7 @@ export default function LandingPage() {
         />
         <h1 className="text-4xl font-black">Media Radar</h1>
         <p className="max-w-sm text-muted-foreground">
-          News, movies, sports, business and tech — all in one place.
+          News, movies, sports, business, devotional and tech — all in one place.
         </p>
       </div>
 
