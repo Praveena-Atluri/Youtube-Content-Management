@@ -11,11 +11,12 @@ create extension if not exists pgcrypto;
 
 do $$ begin
   if not exists (select 1 from pg_type where typname = 'trending_category_v3') then
-    create type trending_category_v3 as enum ('news', 'movies', 'tech', 'sports', 'business', 'devotional');
+    create type trending_category_v3 as enum ('news', 'movies', 'tech', 'sports', 'business', 'health', 'devotional');
   end if;
 end $$;
 
 alter type trending_category_v3 add value if not exists 'devotional';
+alter type trending_category_v3 add value if not exists 'health';
 
 -- ============================================================
 -- Tables
@@ -37,7 +38,7 @@ create table if not exists public.feed_sources (
   source         text not null,
   label          text not null,
   url            text not null unique,
-  category_hint  text not null check (category_hint in ('news', 'movies', 'tech', 'sports', 'business', 'devotional')),
+  category_hint  text not null check (category_hint in ('news', 'movies', 'tech', 'sports', 'business', 'health', 'devotional')),
   active         boolean not null default true,
   display_order  integer not null default 0,
   created_at     timestamptz not null default now(),
@@ -49,7 +50,7 @@ alter table public.feed_sources
 
 alter table public.feed_sources
   add constraint feed_sources_category_hint_check
-  check (category_hint in ('news', 'movies', 'tech', 'sports', 'business', 'devotional'));
+  check (category_hint in ('news', 'movies', 'tech', 'sports', 'business', 'health', 'devotional'));
 
 create table if not exists public.youtube_videos (
   id             uuid primary key default gen_random_uuid(),
@@ -228,6 +229,13 @@ values
   ('Go Spiritual India', 'Go Spiritual India',       'https://gospiritualindia.in/tag/spiritual-india/feed/',       'devotional', true, 223),
   ('NT News',         'NT News - Devotional',       'https://www.ntnews.com/devotional/feed',                      'devotional', true, 224),
   ('NTV Telugu',      'NTV Telugu - Bhakthi',       'https://ntvtelugu.com/bhakthi/feed',                          'devotional', true, 225),
+  -- life style
+  ('News18 Telugu',   'News18 Telugu - Life Style',  'https://telugu.news18.com/commonfeeds/v1/tel/rss/life-style.xml', 'health', true, 226),
+  ('Times Now Telugu','Times Now Telugu - Life Style','https://telugu.timesnownews.com/feeds/gns-te-lifestyle.xml', 'health', true, 227),
+  ('Boldsky Telugu',  'Boldsky Telugu - Life Style', 'https://telugu.boldsky.com/rss/feeds/telugu-health-fb.xml', 'health', true, 228),
+  ('News Velugu',     'News Velugu - Life Style',    'https://newsvelugu.com/category/health/feed/',             'health', true, 229),
+  ('OneIndia Telugu', 'OneIndia Telugu - Life Style','https://telugu.oneindia.com/rss/feeds/telugu-health-fb.xml', 'health', true, 230),
+  ('NT News',         'NT News - Life Style',        'https://www.ntnews.com/health/feed',                       'health', true, 231),
   -- tech: ABP Live
   ('ABP Live Telugu', 'ABP Live - Tech',            'https://telugu.abplive.com/tech/feed',                        'tech', true, 180),
   ('ABP Live Telugu', 'ABP Live - Gadgets',         'https://telugu.abplive.com/tech/gadgets/feed',                'tech', true, 181),

@@ -87,6 +87,10 @@ function inferTaxonomy(
     return { category: "business" };
   }
 
+  if (fallback === "health") {
+    return { category: "health" };
+  }
+
   if (fallback === "devotional") {
     return { category: "devotional" };
   }
@@ -111,6 +115,7 @@ const CATEGORY_BOOST: Record<string, number> = {
   movies:   12,
   sports:   12,
   business: 10,
+  health:   10,
   devotional: 10,
   tech:     8,
 };

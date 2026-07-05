@@ -1,4 +1,11 @@
-export type TrendingCategory = "news" | "movies" | "tech" | "sports" | "business" | "devotional";
+export type TrendingCategory =
+  | "news"
+  | "movies"
+  | "tech"
+  | "sports"
+  | "business"
+  | "health"
+  | "devotional";
 
 export type CategoryFilter = TrendingCategory | "all";
 export type StorySortOption = "virality" | "publishedAt" | "syncedAt";
@@ -32,6 +39,10 @@ export type SourceFilterOption = {
 };
 
 export function categoryLabel(value: CategoryFilter) {
+  if (value === "health") {
+    return "Life Style";
+  }
+
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 

@@ -18,6 +18,7 @@ function normalizeCategory(category: string): TrendingCategory {
     category === "tech" ||
     category === "sports" ||
     category === "business" ||
+    category === "health" ||
     category === "devotional"
   ) {
     return category;

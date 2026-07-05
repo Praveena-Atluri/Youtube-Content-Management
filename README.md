@@ -12,9 +12,9 @@ A Next.js 15 dashboard for scouting Telugu trends, deduplicating them by source 
 
 ## Features
 
-- Sidebar dashboard with `All`, `News`, `Movies`, `Sports`, `Business`, `Devotional`, and `Tech`
+- Sidebar dashboard with `All`, `News`, `Movies`, `Sports`, `Business`, `Life Style`, `Devotional`, and `Tech`
 - Sorting by `Virality Score`, `Published`, or `Synced Time`
-- RSS ingestion from Telugu news feeds and dedicated tech feeds
+- RSS ingestion from Telugu news feeds and dedicated category feeds
 - Feed sources managed in Supabase through a `feed_sources` table
 - Source URL-based duplicate detection
 - Unique story listing limited to the last 24 hours
@@ -69,7 +69,7 @@ supabase functions deploy sync-feeds --no-verify-jwt
 
 ## Notes
 
-- Active categories are `news`, `movies`, `sports`, `business`, `devotional`, and `tech`.
+- Active categories are `news`, `movies`, `sports`, `business`, `health`, `devotional`, and `tech`.
 - Active feed sources are loaded from `public.feed_sources` in Supabase.
 - Movie, devotional, and sports classification is keyword-based and can be overridden with `MOVIE_KEYWORDS`, `DEVOTIONAL_KEYWORDS`, and `SPORTS_KEYWORDS`.
 - Keyword classification also checks the resolved source/article URL.

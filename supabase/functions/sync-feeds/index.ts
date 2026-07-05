@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 
-type CategoryHint = "news" | "movies" | "tech" | "sports" | "business" | "devotional";
+type CategoryHint = "news" | "movies" | "tech" | "sports" | "business" | "health" | "devotional";
 
 const VALID_CATEGORY_HINTS: CategoryHint[] = [
   "news",
@@ -8,6 +8,7 @@ const VALID_CATEGORY_HINTS: CategoryHint[] = [
   "tech",
   "sports",
   "business",
+  "health",
   "devotional"
 ];
 
@@ -32,7 +33,13 @@ const DEFAULT_FEEDS = [
   ["Bhakthi TV", "Bhakthi TV", "https://www.bhakthitv.in/feed", "devotional"],
   ["Go Spiritual India", "Go Spiritual India", "https://gospiritualindia.in/tag/spiritual-india/feed/", "devotional"],
   ["NT News", "NT News - Devotional", "https://www.ntnews.com/devotional/feed", "devotional"],
-  ["NTV Telugu", "NTV Telugu - Bhakthi", "https://ntvtelugu.com/bhakthi/feed", "devotional"]
+  ["NTV Telugu", "NTV Telugu - Bhakthi", "https://ntvtelugu.com/bhakthi/feed", "devotional"],
+  ["News18 Telugu", "News18 Telugu - Life Style", "https://telugu.news18.com/commonfeeds/v1/tel/rss/life-style.xml", "health"],
+  ["Times Now Telugu", "Times Now Telugu - Life Style", "https://telugu.timesnownews.com/feeds/gns-te-lifestyle.xml", "health"],
+  ["Boldsky Telugu", "Boldsky Telugu - Life Style", "https://telugu.boldsky.com/rss/feeds/telugu-health-fb.xml", "health"],
+  ["News Velugu", "News Velugu - Life Style", "https://newsvelugu.com/category/health/feed/", "health"],
+  ["OneIndia Telugu", "OneIndia Telugu - Life Style", "https://telugu.oneindia.com/rss/feeds/telugu-health-fb.xml", "health"],
+  ["NT News", "NT News - Life Style", "https://www.ntnews.com/health/feed", "health"]
 ] as const;
 
 const DEFAULT_MOVIE_KEYWORDS = [
@@ -413,6 +420,10 @@ function inferTaxonomy(
 
   if (fallback === "business") {
     return { category: "business" };
+  }
+
+  if (fallback === "health") {
+    return { category: "health" };
   }
 
   if (fallback === "devotional") {

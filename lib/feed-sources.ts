@@ -127,6 +127,42 @@ export const DEFAULT_FEED_SOURCES: FeedDefinition[] = [
     label: "NTV Telugu - Bhakthi",
     url: "https://ntvtelugu.com/bhakthi/feed",
     categoryHint: "devotional"
+  },
+  {
+    source: "News18 Telugu",
+    label: "News18 Telugu - Life Style",
+    url: "https://telugu.news18.com/commonfeeds/v1/tel/rss/life-style.xml",
+    categoryHint: "health"
+  },
+  {
+    source: "Times Now Telugu",
+    label: "Times Now Telugu - Life Style",
+    url: "https://telugu.timesnownews.com/feeds/gns-te-lifestyle.xml",
+    categoryHint: "health"
+  },
+  {
+    source: "Boldsky Telugu",
+    label: "Boldsky Telugu - Life Style",
+    url: "https://telugu.boldsky.com/rss/feeds/telugu-health-fb.xml",
+    categoryHint: "health"
+  },
+  {
+    source: "News Velugu",
+    label: "News Velugu - Life Style",
+    url: "https://newsvelugu.com/category/health/feed/",
+    categoryHint: "health"
+  },
+  {
+    source: "OneIndia Telugu",
+    label: "OneIndia Telugu - Life Style",
+    url: "https://telugu.oneindia.com/rss/feeds/telugu-health-fb.xml",
+    categoryHint: "health"
+  },
+  {
+    source: "NT News",
+    label: "NT News - Life Style",
+    url: "https://www.ntnews.com/health/feed",
+    categoryHint: "health"
   }
 ];
 
@@ -135,6 +171,7 @@ const CATEGORY_ORDER: TrendingCategory[] = [
   "movies",
   "sports",
   "business",
+  "health",
   "devotional",
   "tech"
 ];
