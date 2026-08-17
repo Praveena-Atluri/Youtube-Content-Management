@@ -53,7 +53,7 @@ export async function getStories(
     )
     .order("virality_score", { ascending: false })
     .order("inserted_at", { ascending: false })
-    .limit(1500);
+    .limit(2000);
 
   if (response.error) {
     console.error(response.error);
@@ -107,7 +107,7 @@ export async function getStories(
     );
   });
 
-  return filteredStories.slice(0, 1500);
+  return filteredStories.slice(0, 2000);
 }
 
 export async function getStoryById(storyId: string): Promise<StoryRecord | null> {

@@ -163,6 +163,66 @@ export const DEFAULT_FEED_SOURCES: FeedDefinition[] = [
     label: "NT News - Life Style",
     url: "https://www.ntnews.com/health/feed",
     categoryHint: "health"
+  },
+  {
+    source: "The Hindu",
+    label: "The Hindu - Life Style",
+    url: "https://www.thehindu.com/sci-tech/health/feeder/default.rss",
+    categoryHint: "health"
+  },
+  {
+    source: "Indian Express",
+    label: "Indian Express - Life Style",
+    url: "https://indianexpress.com/section/health-wellness/feed/",
+    categoryHint: "health"
+  },
+  {
+    source: "News18 English",
+    label: "News18 English - Life Style",
+    url: "https://www.news18.com/commonfeeds/v1/eng/rss/lifestyle/health-and-fitness.xml",
+    categoryHint: "health"
+  },
+  {
+    source: "OnlyMyHealth",
+    label: "OnlyMyHealth - Life Style",
+    url: "https://www.onlymyhealth.com/rss/health/latest/latestarticle_en.xml",
+    categoryHint: "health"
+  },
+  {
+    source: "Health Dialogues",
+    label: "Health Dialogues - Life Style",
+    url: "https://health.medicaldialogues.in/feed",
+    categoryHint: "health"
+  },
+  {
+    source: "ET HealthWorld",
+    label: "ET HealthWorld - Life Style",
+    url: "https://health.economictimes.indiatimes.com/rss/topstories",
+    categoryHint: "health"
+  },
+  {
+    source: "Medical Xpress",
+    label: "Medical Xpress - Life Style",
+    url: "https://medicalxpress.com/rss-feed/",
+    categoryHint: "health"
+  },
+  {
+    source: "WHO",
+    label: "WHO - Life Style",
+    url: "https://www.who.int/rss-feeds/news-english.xml",
+    categoryHint: "health"
+  },
+  {
+    source: "TV9 Telugu",
+    label: "TV9 Telugu - Life Style",
+    url: "https://tv9telugu.com/health/feed",
+    categoryHint: "health"
+  },
+  {
+    source: "NTV Telugu",
+    label: "NTV Telugu - Life Style",
+    url: "https://ntvtelugu.com/health/feed",
+    categoryHint: "health"
   }
 ];
 

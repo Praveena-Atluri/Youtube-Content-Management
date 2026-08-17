@@ -39,7 +39,17 @@ const DEFAULT_FEEDS = [
   ["Boldsky Telugu", "Boldsky Telugu - Life Style", "https://telugu.boldsky.com/rss/feeds/telugu-health-fb.xml", "health"],
   ["News Velugu", "News Velugu - Life Style", "https://newsvelugu.com/category/health/feed/", "health"],
   ["OneIndia Telugu", "OneIndia Telugu - Life Style", "https://telugu.oneindia.com/rss/feeds/telugu-health-fb.xml", "health"],
-  ["NT News", "NT News - Life Style", "https://www.ntnews.com/health/feed", "health"]
+  ["NT News", "NT News - Life Style", "https://www.ntnews.com/health/feed", "health"],
+  ["The Hindu", "The Hindu - Life Style", "https://www.thehindu.com/sci-tech/health/feeder/default.rss", "health"],
+  ["Indian Express", "Indian Express - Life Style", "https://indianexpress.com/section/health-wellness/feed/", "health"],
+  ["News18 English", "News18 English - Life Style", "https://www.news18.com/commonfeeds/v1/eng/rss/lifestyle/health-and-fitness.xml", "health"],
+  ["OnlyMyHealth", "OnlyMyHealth - Life Style", "https://www.onlymyhealth.com/rss/health/latest/latestarticle_en.xml", "health"],
+  ["Health Dialogues", "Health Dialogues - Life Style", "https://health.medicaldialogues.in/feed", "health"],
+  ["ET HealthWorld", "ET HealthWorld - Life Style", "https://health.economictimes.indiatimes.com/rss/topstories", "health"],
+  ["Medical Xpress", "Medical Xpress - Life Style", "https://medicalxpress.com/rss-feed/", "health"],
+  ["WHO", "WHO - Life Style", "https://www.who.int/rss-feeds/news-english.xml", "health"],
+  ["TV9 Telugu", "TV9 Telugu - Life Style", "https://tv9telugu.com/health/feed", "health"],
+  ["NTV Telugu", "NTV Telugu - Life Style", "https://ntvtelugu.com/health/feed", "health"]
 ] as const;
 
 const DEFAULT_MOVIE_KEYWORDS = [
@@ -471,7 +481,7 @@ Deno.serve(async () => {
   const { data: existingRows, error: existingError } = await supabase
     .from("trending_topics")
     .select("metadata")
-    .limit(1500);
+    .limit(2000);
 
   if (existingError) {
     return new Response(JSON.stringify({ error: existingError.message }), {

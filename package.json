@@ -10,7 +10,8 @@
     "build": "PATH=/opt/homebrew/bin:$PATH next build",
     "start": "PATH=$HOME/.nvm/versions/node/v20.19.5/bin:$PATH next start",
     "lint": "next lint",
-    "test": "node --test"
+    "test": "node --test",
+    "validate:feeds": "node scripts/validate-feed-migration.mjs"
   },
   "dependencies": {
     "@radix-ui/react-scroll-area": "1.2.0",

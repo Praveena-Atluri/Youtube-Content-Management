@@ -189,7 +189,7 @@ export async function syncFeeds() {
   const existingStories = await supabase
     .from("trending_topics")
     .select("title, metadata")
-    .limit(1500);
+    .limit(2000);
 
   if (existingStories.error) {
     throw existingStories.error;
