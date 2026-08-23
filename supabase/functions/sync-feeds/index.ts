@@ -12,6 +12,42 @@ const VALID_CATEGORY_HINTS: CategoryHint[] = [
   "devotional"
 ];
 
+const FEED_FETCH_CONCURRENCY = 20;
+const ARTICLE_RESOLUTION_CONCURRENCY = 32;
+const INSERT_BATCH_SIZE = 250;
+const FEED_TIMEOUT_MS = 15_000;
+
+async function mapConcurrentSettled<T, R>(
+  values: readonly T[],
+  concurrency: number,
+  task: (value: T) => Promise<R>
+): Promise<PromiseSettledResult<R>[]> {
+  const results = new Array<PromiseSettledResult<R>>(values.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < values.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+
+      try {
+        results[index] = { status: "fulfilled", value: await task(values[index]) };
+      } catch (reason) {
+        results[index] = { status: "rejected", reason };
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(Math.max(1, concurrency), values.length) },
+      () => worker()
+    )
+  );
+
+  return results;
+}
+
 const DEFAULT_FEEDS = [
   ["NTV", "NTV Telugu", "https://ntvtelugu.com/feed", "news"],
   ["V6", "V6 Velugu", "https://www.v6velugu.com/feed", "news"],
@@ -368,14 +404,25 @@ async function resolveArticleUrl(source: string, url: string) {
 }
 
 async function parseFeed(url: string) {
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/atom+xml, application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.1",
+      "User-Agent": "TeluguMediaContentScout/1.0"
+    },
+    signal: AbortSignal.timeout(FEED_TIMEOUT_MS)
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
   const xml = await response.text();
   const document = new DOMParser().parseFromString(xml, "application/xml");
-  const items = [...(document?.querySelectorAll("item") ?? [])];
+  const items = [...(document?.querySelectorAll("item, entry") ?? [])];
 
   return items.slice(0, 30).map((item) => {
     const title = item.querySelector("title")?.textContent?.trim() ?? "";
-    const descriptionHtml = item.querySelector("description")?.textContent ?? "";
+    const descriptionHtml =
+      item.querySelector("description, summary, content")?.textContent ?? "";
     const summary =
       descriptionHtml.replace(/<[^>]+>/g, " ").trim() ?? "";
     const encoded =
@@ -383,8 +430,14 @@ async function parseFeed(url: string) {
     const descriptionLinks = [...descriptionHtml.matchAll(/href="(https?:\/\/[^"]+)"/gi)]
       .map((match) => match[1])
       .filter((candidate) => isLikelyArticleUrl(candidate));
-    const link = descriptionLinks[0] ?? item.querySelector("link")?.textContent?.trim() ?? "";
-    const publishedAt = item.querySelector("pubDate")?.textContent?.trim() ?? new Date().toISOString();
+    const linkElement = item.querySelector("link");
+    const link = descriptionLinks[0] ??
+      linkElement?.getAttribute("href")?.trim() ??
+      linkElement?.textContent?.trim() ??
+      "";
+    const publishedAt =
+      item.querySelector("pubDate, published, updated")?.textContent?.trim() ??
+      new Date().toISOString();
 
     return {
       title,
@@ -465,6 +518,7 @@ Deno.serve(async () => {
   const feeds = await getActiveFeedSources();
   const movieKeywords = getMovieKeywords();
   const devotionalKeywords = getDevotionalKeywords();
+  const syncTime = new Date().toISOString();
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { error: deleteError, count: deletedCount } = await supabase
     .from("trending_topics")
@@ -478,9 +532,10 @@ Deno.serve(async () => {
   }
 
   const existingLinks = new Set<string>();
+  const existingTitles = new Set<string>();
   const { data: existingRows, error: existingError } = await supabase
     .from("trending_topics")
-    .select("metadata")
+    .select("title, metadata")
     .limit(2000);
 
   if (existingError) {
@@ -504,64 +559,163 @@ Deno.serve(async () => {
     if (link) {
       existingLinks.add(link);
     }
+
+    if (typeof row.title === "string" && row.title) {
+      existingTitles.add(row.title.trim().toLowerCase().replace(/\s+/g, " "));
+    }
   }
 
   let inserted = 0;
   let skipped = 0;
+  const errors: string[] = [];
+  type FeedSource = readonly [string, string, string, CategoryHint];
+  type UnresolvedItem = {
+    feed: FeedSource;
+    title: string;
+    summary: string;
+    contentBody: string;
+    link: string;
+    publishedAt: string;
+  };
+  type ResolvedItem = Omit<UnresolvedItem, "link"> & {
+    articleUrl: string;
+  };
 
-  for (const [source, label, url, fallbackCategory] of feeds) {
-    const items = await parseFeed(url);
+  const feedSources = feeds as readonly FeedSource[];
+  const feedResults = await mapConcurrentSettled(
+    feedSources,
+    FEED_FETCH_CONCURRENCY,
+    async (feed) => {
+      const items = await parseFeed(feed[2]);
+      return items
+        .filter((item) => isWithinLast24Hours(item.publishedAt))
+        .map((item) => ({
+          feed,
+          title: item.title,
+          summary: item.summary,
+          contentBody: item.contentBody,
+          link: item.link,
+          publishedAt: item.publishedAt
+        }) satisfies UnresolvedItem);
+    }
+  );
 
-    for (const item of items) {
-      if (!isWithinLast24Hours(item.publishedAt)) {
-        skipped += 1;
-        continue;
-      }
-
-      const articleUrl = canonicalizeArticleUrl(
-        await resolveArticleUrl(source, item.link)
+  const unresolved: UnresolvedItem[] = [];
+  for (let index = 0; index < feedResults.length; index += 1) {
+    const result = feedResults[index];
+    if (result.status === "rejected") {
+      errors.push(
+        `${feedSources[index][1]}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`
       );
+    } else {
+      unresolved.push(...result.value);
+    }
+  }
 
-      const taxonomy = inferTaxonomy(
-        `${item.title} ${item.summary} ${item.contentBody}`,
-        articleUrl,
-        fallbackCategory,
-        movieKeywords,
-        devotionalKeywords
+  const resolutionResults = await mapConcurrentSettled(
+    unresolved,
+    ARTICLE_RESOLUTION_CONCURRENCY,
+    async (item) => ({
+      feed: item.feed,
+      title: item.title,
+      summary: item.summary,
+      contentBody: item.contentBody,
+      publishedAt: item.publishedAt,
+      articleUrl: canonicalizeArticleUrl(
+        await resolveArticleUrl(item.feed[0], item.link)
+      )
+    }) satisfies ResolvedItem
+  );
+
+  const resolved: ResolvedItem[] = [];
+  for (let index = 0; index < resolutionResults.length; index += 1) {
+    const result = resolutionResults[index];
+    if (result.status === "rejected") {
+      errors.push(
+        `${unresolved[index].feed[1]}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`
       );
+    } else {
+      resolved.push(result.value);
+    }
+  }
 
-      if (articleUrl && existingLinks.has(articleUrl)) {
-        skipped += 1;
-        continue;
-      }
+  const prepared: Array<{ source: string; row: Record<string, unknown> }> = [];
+  for (const item of resolved) {
+    if (item.articleUrl && existingLinks.has(item.articleUrl)) {
+      skipped += 1;
+      continue;
+    }
 
-      const { error } = await supabase.from("trending_topics").insert({
+    const titleKey = item.title.trim().toLowerCase().replace(/\s+/g, " ");
+    if (titleKey && existingTitles.has(titleKey)) {
+      skipped += 1;
+      continue;
+    }
+
+    const [source, label, , fallbackCategory] = item.feed;
+    const taxonomy = inferTaxonomy(
+      `${item.title} ${item.summary} ${item.contentBody}`,
+      item.articleUrl,
+      fallbackCategory,
+      movieKeywords,
+      devotionalKeywords
+    );
+
+    prepared.push({
+      source,
+      row: {
         category: taxonomy.category,
         title: item.title,
         summary: item.summary,
         content_body: item.contentBody,
         virality_score: 70,
+        inserted_at: syncTime,
         metadata: {
           source,
           feedLabel: label,
-          link: articleUrl,
+          link: item.articleUrl,
           publishedAt: item.publishedAt
         }
-      });
-
-      if (error) {
-        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
       }
+    });
 
-      if (articleUrl) {
-        existingLinks.add(articleUrl);
-      }
-
-      inserted += 1;
+    if (item.articleUrl) {
+      existingLinks.add(item.articleUrl);
+    }
+    if (titleKey) {
+      existingTitles.add(titleKey);
     }
   }
 
-  return new Response(JSON.stringify({ inserted, skipped, deleted: deletedCount ?? 0 }), {
+  for (let offset = 0; offset < prepared.length; offset += INSERT_BATCH_SIZE) {
+    const batch = prepared.slice(offset, offset + INSERT_BATCH_SIZE);
+    const { error: batchError } = await supabase
+      .from("trending_topics")
+      .insert(batch.map((entry) => entry.row));
+
+    if (!batchError) {
+      inserted += batch.length;
+      continue;
+    }
+
+    for (const entry of batch) {
+      const { error } = await supabase.from("trending_topics").insert(entry.row);
+      if (!error) {
+        inserted += 1;
+      } else if (error.code === "23505") {
+        skipped += 1;
+      } else {
+        errors.push(`${entry.source}: ${error.message}`);
+      }
+    }
+  }
+
+  return new Response(JSON.stringify({
+    inserted,
+    skipped,
+    deleted: deletedCount ?? 0,
+    errors
+  }), {
     headers: {
       "Content-Type": "application/json"
     }

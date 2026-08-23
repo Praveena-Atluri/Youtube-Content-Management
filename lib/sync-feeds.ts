@@ -121,6 +121,40 @@ const CATEGORY_BOOST: Record<string, number> = {
 };
 
 const TITLE_POWER_WORDS = ["breaking", "exclusive", "urgent", "alert", "first", "shock", "major"];
+const FEED_FETCH_CONCURRENCY = 20;
+const ARTICLE_RESOLUTION_CONCURRENCY = 32;
+const INSERT_BATCH_SIZE = 250;
+
+async function mapConcurrentSettled<T, R>(
+  values: readonly T[],
+  concurrency: number,
+  task: (value: T) => Promise<R>
+): Promise<PromiseSettledResult<R>[]> {
+  const results = new Array<PromiseSettledResult<R>>(values.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < values.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+
+      try {
+        results[index] = { status: "fulfilled", value: await task(values[index]) };
+      } catch (reason) {
+        results[index] = { status: "rejected", reason };
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(Math.max(1, concurrency), values.length) },
+      () => worker()
+    )
+  );
+
+  return results;
+}
 
 function calculateViralityScore(input: {
   publishedAt: string;
@@ -229,51 +263,90 @@ export async function syncFeeds() {
     publishedAt: string;
   };
 
-  // Fetch all feeds and resolve all URLs concurrently
-  const feedResults = await Promise.allSettled(
-    feedSources.map(async (feed) => {
+  type UnresolvedItem = Omit<ResolvedItem, "articleUrl"> & {
+    link: string;
+  };
+
+  // Bound concurrency so a large feed inventory does not exhaust sockets or
+  // amplify publisher timeouts.
+  const feedResults = await mapConcurrentSettled(
+    feedSources,
+    FEED_FETCH_CONCURRENCY,
+    async (feed) => {
       const items = await fetchFeedItems(feed.url, feed.source);
-      const recentItems = items
+      return items
         .slice(0, 30)
-        .filter((item) => isWithinLast24Hours(item.publishedAt));
-
-      const resolved = await Promise.allSettled(
-        recentItems.map(async (item) => {
-          const articleUrl = canonicalizeArticleUrl(
-            await resolveArticleUrl(feed.source, item.link)
-          );
-          return {
-            feed,
-            title: item.title,
-            summary: item.summary,
-            contentBody: item.contentBody,
-            articleUrl,
-            publishedAt: item.publishedAt
-          } satisfies ResolvedItem;
-        })
-      );
-
-      return { feed, resolved };
-    })
+        .filter((item) => isWithinLast24Hours(item.publishedAt))
+        .map((item) => ({
+          feed,
+          title: item.title,
+          summary: item.summary,
+          contentBody: item.contentBody,
+          link: item.link,
+          publishedAt: item.publishedAt
+        }) satisfies UnresolvedItem);
+    }
   );
 
-  // Collect all resolved items, recording per-feed fetch errors
-  const candidates: ResolvedItem[] = [];
-  for (const feedResult of feedResults) {
+  const unresolved: UnresolvedItem[] = [];
+  for (let index = 0; index < feedResults.length; index += 1) {
+    const feedResult = feedResults[index];
     if (feedResult.status === "rejected") {
-      errors.push(`Feed fetch failed: ${feedResult.reason instanceof Error ? feedResult.reason.message : String(feedResult.reason)}`);
+      errors.push(
+        `${feedSources[index].label}: ${feedResult.reason instanceof Error ? feedResult.reason.message : String(feedResult.reason)}`
+      );
       continue;
     }
-    for (const itemResult of feedResult.value.resolved) {
-      if (itemResult.status === "rejected") {
-        errors.push(`${feedResult.value.feed.source}: ${itemResult.reason instanceof Error ? itemResult.reason.message : String(itemResult.reason)}`);
-      } else {
-        candidates.push(itemResult.value);
-      }
+
+    unresolved.push(...feedResult.value);
+  }
+
+  const resolutionResults = await mapConcurrentSettled(
+    unresolved,
+    ARTICLE_RESOLUTION_CONCURRENCY,
+    async (candidate) => ({
+      feed: candidate.feed,
+      title: candidate.title,
+      summary: candidate.summary,
+      contentBody: candidate.contentBody,
+      articleUrl: canonicalizeArticleUrl(
+        await resolveArticleUrl(candidate.feed.source, candidate.link)
+      ),
+      publishedAt: candidate.publishedAt
+    }) satisfies ResolvedItem
+  );
+
+  const candidates: ResolvedItem[] = [];
+  for (let index = 0; index < resolutionResults.length; index += 1) {
+    const result = resolutionResults[index];
+    if (result.status === "rejected") {
+      errors.push(
+        `${unresolved[index].feed.label}: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`
+      );
+    } else {
+      candidates.push(result.value);
     }
   }
 
-  // Dedup and insert sequentially to keep existingLinks/existingTitles consistent
+  type PreparedInsert = {
+    source: string;
+    row: {
+      category: TrendingCategory;
+      title: string;
+      summary: string;
+      content_body: string;
+      virality_score: number;
+      inserted_at: string;
+      metadata: {
+        source: string;
+        feedLabel: string;
+        link: string;
+        publishedAt: string;
+      };
+    };
+  };
+
+  const prepared: PreparedInsert[] = [];
   for (const candidate of candidates) {
     if (candidate.articleUrl && existingLinks.has(candidate.articleUrl)) {
       skipped += 1;
@@ -302,30 +375,23 @@ export async function syncFeeds() {
       categoryHint: candidate.feed.categoryHint
     });
 
-    const insertResult = await supabase.from("trending_topics").insert({
-      category: taxonomy.category,
-      title: candidate.title,
-      summary: candidate.summary,
-      content_body: candidate.contentBody,
-      virality_score: viralityScore,
-      inserted_at: syncTime,
-      metadata: {
-        source: candidate.feed.source,
-        feedLabel: candidate.feed.label,
-        link: candidate.articleUrl,
-        publishedAt: candidate.publishedAt
+    prepared.push({
+      source: candidate.feed.source,
+      row: {
+        category: taxonomy.category,
+        title: candidate.title,
+        summary: candidate.summary,
+        content_body: candidate.contentBody,
+        virality_score: viralityScore,
+        inserted_at: syncTime,
+        metadata: {
+          source: candidate.feed.source,
+          feedLabel: candidate.feed.label,
+          link: candidate.articleUrl,
+          publishedAt: candidate.publishedAt
+        }
       }
     });
-
-    if (insertResult.error) {
-      // unique constraint violation — another concurrent sync already inserted this URL
-      if (insertResult.error.code === "23505") {
-        skipped += 1;
-        continue;
-      }
-      errors.push(`${candidate.feed.source}: ${insertResult.error.message}`);
-      continue;
-    }
 
     if (candidate.articleUrl) {
       existingLinks.add(candidate.articleUrl);
@@ -334,7 +400,31 @@ export async function syncFeeds() {
       existingTitles.add(titleKey);
     }
 
-    inserted += 1;
+  }
+
+  // A successful batch is one database round trip. If a concurrent sync causes
+  // a unique conflict, retry that batch row-by-row so valid rows are retained.
+  for (let offset = 0; offset < prepared.length; offset += INSERT_BATCH_SIZE) {
+    const batch = prepared.slice(offset, offset + INSERT_BATCH_SIZE);
+    const batchResult = await supabase
+      .from("trending_topics")
+      .insert(batch.map((entry) => entry.row));
+
+    if (!batchResult.error) {
+      inserted += batch.length;
+      continue;
+    }
+
+    for (const entry of batch) {
+      const rowResult = await supabase.from("trending_topics").insert(entry.row);
+      if (!rowResult.error) {
+        inserted += 1;
+      } else if (rowResult.error.code === "23505") {
+        skipped += 1;
+      } else {
+        errors.push(`${entry.source}: ${rowResult.error.message}`);
+      }
+    }
   }
 
   return { inserted, skipped, deleted, errors };
