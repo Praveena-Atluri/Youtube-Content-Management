@@ -124,6 +124,8 @@ const TITLE_POWER_WORDS = ["breaking", "exclusive", "urgent", "alert", "first", 
 const FEED_FETCH_CONCURRENCY = 20;
 const ARTICLE_RESOLUTION_CONCURRENCY = 32;
 const INSERT_BATCH_SIZE = 250;
+const EXISTING_STORY_PAGE_SIZE = 1000;
+const SYNC_VERSION = "bounded-batch-v3";
 
 async function mapConcurrentSettled<T, R>(
   values: readonly T[],
@@ -210,6 +212,7 @@ function normalizeTitle(title: string) {
 }
 
 export async function syncFeeds() {
+  const syncStartedAt = Date.now();
   const supabase = createSupabaseAdminClient();
   const syncTime = new Date().toISOString();
   const feedSources = await getActiveFeedSources();
@@ -220,16 +223,25 @@ export async function syncFeeds() {
   const existingLinks = new Set<string>();
   const existingTitles = new Set<string>();
 
-  const existingStories = await supabase
-    .from("trending_topics")
-    .select("title, metadata")
-    .limit(2000);
+  const existingStoryRows: Array<{ title: string | null; metadata: unknown }> = [];
+  for (let offset = 0; ; offset += EXISTING_STORY_PAGE_SIZE) {
+    const page = await supabase
+      .from("trending_topics")
+      .select("title, metadata")
+      .range(offset, offset + EXISTING_STORY_PAGE_SIZE - 1);
 
-  if (existingStories.error) {
-    throw existingStories.error;
+    if (page.error) {
+      throw page.error;
+    }
+
+    const rows = (page.data ?? []) as Array<{ title: string | null; metadata: unknown }>;
+    existingStoryRows.push(...rows);
+    if (rows.length < EXISTING_STORY_PAGE_SIZE) {
+      break;
+    }
   }
 
-  for (const story of existingStories.data ?? []) {
+  for (const story of existingStoryRows) {
     const link =
       story &&
       typeof story === "object" &&
@@ -249,6 +261,7 @@ export async function syncFeeds() {
       existingTitles.add(normalizeTitle(story.title));
     }
   }
+  const setupCompletedAt = Date.now();
 
   let inserted = 0;
   let skipped = 0;
@@ -287,6 +300,7 @@ export async function syncFeeds() {
         }) satisfies UnresolvedItem);
     }
   );
+  const feedsFetchedAt = Date.now();
 
   const unresolved: UnresolvedItem[] = [];
   for (let index = 0; index < feedResults.length; index += 1) {
@@ -327,6 +341,7 @@ export async function syncFeeds() {
       candidates.push(result.value);
     }
   }
+  const urlsResolvedAt = Date.now();
 
   type PreparedInsert = {
     source: string;
@@ -401,31 +416,55 @@ export async function syncFeeds() {
     }
 
   }
+  const insertsStartedAt = Date.now();
 
-  // A successful batch is one database round trip. If a concurrent sync causes
-  // a unique conflict, retry that batch row-by-row so valid rows are retained.
-  for (let offset = 0; offset < prepared.length; offset += INSERT_BATCH_SIZE) {
-    const batch = prepared.slice(offset, offset + INSERT_BATCH_SIZE);
+  // Split only failed batches. This isolates a rare duplicate or malformed row
+  // without turning the entire batch into sequential database round trips.
+  async function insertPreparedBatch(batch: PreparedInsert[]): Promise<void> {
     const batchResult = await supabase
       .from("trending_topics")
       .insert(batch.map((entry) => entry.row));
 
     if (!batchResult.error) {
       inserted += batch.length;
-      continue;
+      return;
     }
 
-    for (const entry of batch) {
-      const rowResult = await supabase.from("trending_topics").insert(entry.row);
-      if (!rowResult.error) {
-        inserted += 1;
-      } else if (rowResult.error.code === "23505") {
-        skipped += 1;
-      } else {
-        errors.push(`${entry.source}: ${rowResult.error.message}`);
-      }
+    if (batch.length > 1) {
+      const midpoint = Math.ceil(batch.length / 2);
+      await insertPreparedBatch(batch.slice(0, midpoint));
+      await insertPreparedBatch(batch.slice(midpoint));
+      return;
+    }
+
+    if (batchResult.error.code === "23505") {
+      skipped += 1;
+    } else {
+      errors.push(`${batch[0].source}: ${batchResult.error.message}`);
     }
   }
 
-  return { inserted, skipped, deleted, errors };
+  for (let offset = 0; offset < prepared.length; offset += INSERT_BATCH_SIZE) {
+    await insertPreparedBatch(prepared.slice(offset, offset + INSERT_BATCH_SIZE));
+  }
+
+  const syncCompletedAt = Date.now();
+  return {
+    syncVersion: SYNC_VERSION,
+    inserted,
+    skipped,
+    deleted,
+    errors,
+    feeds: feedSources.length,
+    candidates: candidates.length,
+    prepared: prepared.length,
+    timingsMs: {
+      total: syncCompletedAt - syncStartedAt,
+      setup: setupCompletedAt - syncStartedAt,
+      fetch: feedsFetchedAt - setupCompletedAt,
+      resolve: urlsResolvedAt - feedsFetchedAt,
+      prepare: insertsStartedAt - urlsResolvedAt,
+      insert: syncCompletedAt - insertsStartedAt
+    }
+  };
 }

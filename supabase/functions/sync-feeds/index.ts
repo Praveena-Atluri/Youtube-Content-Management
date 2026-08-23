@@ -515,6 +515,9 @@ function isWithinLast24Hours(publishedAt: string) {
 }
 
 Deno.serve(async () => {
+  const syncStartedAt = Date.now();
+  const syncVersion = "bounded-batch-v3";
+  const existingStoryPageSize = 1000;
   const feeds = await getActiveFeedSources();
   const movieKeywords = getMovieKeywords();
   const devotionalKeywords = getDevotionalKeywords();
@@ -533,18 +536,27 @@ Deno.serve(async () => {
 
   const existingLinks = new Set<string>();
   const existingTitles = new Set<string>();
-  const { data: existingRows, error: existingError } = await supabase
-    .from("trending_topics")
-    .select("title, metadata")
-    .limit(2000);
+  const existingRows: Array<{ title?: unknown; metadata?: unknown }> = [];
+  for (let offset = 0; ; offset += existingStoryPageSize) {
+    const { data, error } = await supabase
+      .from("trending_topics")
+      .select("title, metadata")
+      .range(offset, offset + existingStoryPageSize - 1);
 
-  if (existingError) {
-    return new Response(JSON.stringify({ error: existingError.message }), {
-      status: 500
-    });
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500
+      });
+    }
+
+    const rows = (data ?? []) as Array<{ title?: unknown; metadata?: unknown }>;
+    existingRows.push(...rows);
+    if (rows.length < existingStoryPageSize) {
+      break;
+    }
   }
 
-  for (const row of existingRows ?? []) {
+  for (const row of existingRows) {
     const link =
       row &&
       typeof row === "object" &&
@@ -564,6 +576,7 @@ Deno.serve(async () => {
       existingTitles.add(row.title.trim().toLowerCase().replace(/\s+/g, " "));
     }
   }
+  const setupCompletedAt = Date.now();
 
   let inserted = 0;
   let skipped = 0;
@@ -599,6 +612,7 @@ Deno.serve(async () => {
         }) satisfies UnresolvedItem);
     }
   );
+  const feedsFetchedAt = Date.now();
 
   const unresolved: UnresolvedItem[] = [];
   for (let index = 0; index < feedResults.length; index += 1) {
@@ -638,6 +652,7 @@ Deno.serve(async () => {
       resolved.push(result.value);
     }
   }
+  const urlsResolvedAt = Date.now();
 
   const prepared: Array<{ source: string; row: Record<string, unknown> }> = [];
   for (const item of resolved) {
@@ -686,35 +701,55 @@ Deno.serve(async () => {
       existingTitles.add(titleKey);
     }
   }
+  const insertsStartedAt = Date.now();
 
-  for (let offset = 0; offset < prepared.length; offset += INSERT_BATCH_SIZE) {
-    const batch = prepared.slice(offset, offset + INSERT_BATCH_SIZE);
-    const { error: batchError } = await supabase
+  type PreparedEntry = { source: string; row: Record<string, unknown> };
+  async function insertPreparedBatch(batch: PreparedEntry[]): Promise<void> {
+    const { error } = await supabase
       .from("trending_topics")
       .insert(batch.map((entry) => entry.row));
 
-    if (!batchError) {
+    if (!error) {
       inserted += batch.length;
-      continue;
+      return;
     }
 
-    for (const entry of batch) {
-      const { error } = await supabase.from("trending_topics").insert(entry.row);
-      if (!error) {
-        inserted += 1;
-      } else if (error.code === "23505") {
-        skipped += 1;
-      } else {
-        errors.push(`${entry.source}: ${error.message}`);
-      }
+    if (batch.length > 1) {
+      const midpoint = Math.ceil(batch.length / 2);
+      await insertPreparedBatch(batch.slice(0, midpoint));
+      await insertPreparedBatch(batch.slice(midpoint));
+      return;
+    }
+
+    if (error.code === "23505") {
+      skipped += 1;
+    } else {
+      errors.push(`${batch[0].source}: ${error.message}`);
     }
   }
 
+  for (let offset = 0; offset < prepared.length; offset += INSERT_BATCH_SIZE) {
+    await insertPreparedBatch(prepared.slice(offset, offset + INSERT_BATCH_SIZE));
+  }
+
+  const syncCompletedAt = Date.now();
   return new Response(JSON.stringify({
+    syncVersion,
     inserted,
     skipped,
     deleted: deletedCount ?? 0,
-    errors
+    errors,
+    feeds: feedSources.length,
+    candidates: resolved.length,
+    prepared: prepared.length,
+    timingsMs: {
+      total: syncCompletedAt - syncStartedAt,
+      setup: setupCompletedAt - syncStartedAt,
+      fetch: feedsFetchedAt - setupCompletedAt,
+      resolve: urlsResolvedAt - feedsFetchedAt,
+      prepare: insertsStartedAt - urlsResolvedAt,
+      insert: syncCompletedAt - insertsStartedAt
+    }
   }), {
     headers: {
       "Content-Type": "application/json"
