@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const config = getAccessConfig();
     if (
       !data.user ||
-      !isAllowedEmail(data.user.email, config.allowedEmailDomains, config.allowedEmails)
+      !isAllowedEmail(data.user.email, config.allowedEmails)
     ) {
       await supabase.auth.signOut();
       loginUrl.searchParams.set("error", "domain");

@@ -1,12 +1,10 @@
 export type AccessConfig = {
-  allowedEmailDomains: string[];
   allowedEmails: string[];
   isConfigured: boolean;
 };
 
 type AccessEnvironment = {
   ACCESS_CONTROL_DEV_BYPASS?: string;
-  ALLOWED_EMAIL_DOMAINS?: string;
   ALLOWED_EMAILS?: string;
   NODE_ENV?: string;
 };
@@ -18,38 +16,26 @@ function parseList(value: string | undefined) {
 }
 
 export function getAccessConfig(env: AccessEnvironment = process.env): AccessConfig {
-  const allowedEmailDomains = [
-    ...new Set(
-      parseList(env.ALLOWED_EMAIL_DOMAINS).map((domain) =>
-        domain.toLowerCase().replace(/^@/, "")
-      )
-    )
-  ];
   const allowedEmails = [
     ...new Set(parseList(env.ALLOWED_EMAILS).map((email) => email.toLowerCase()))
   ];
 
   return {
-    allowedEmailDomains,
     allowedEmails,
-    isConfigured: allowedEmailDomains.length > 0 || allowedEmails.length > 0
+    isConfigured: allowedEmails.length > 0
   };
 }
 
 export function isAllowedEmail(
   email: string | null | undefined,
-  domains: string[],
-  allowedEmails: string[] = []
+  allowedEmails: string[]
 ) {
   if (!email) return false;
   const normalizedEmail = email.trim().toLowerCase();
   const separator = normalizedEmail.lastIndexOf("@");
   if (separator <= 0 || separator === normalizedEmail.length - 1) return false;
 
-  return (
-    allowedEmails.includes(normalizedEmail) ||
-    domains.includes(normalizedEmail.slice(separator + 1))
-  );
+  return allowedEmails.includes(normalizedEmail);
 }
 
 export function isDevelopmentBypassEnabled(env: AccessEnvironment = process.env) {

@@ -66,7 +66,7 @@ supabase functions deploy sync-feeds --no-verify-jwt
 
 1. Import the repo into Vercel.
 2. Add the env vars from [.env.example](/Users/praveena.atluri/Documents/youtube-content-management/.env.example:1).
-3. Set `ALLOWED_EMAIL_DOMAINS` to approved company domains and/or `ALLOWED_EMAILS` to approved individual addresses. Both accept comma-separated values.
+3. Set `ALLOWED_EMAILS` to the comma-separated Gmail addresses permitted to access the app.
 4. Set a strong `CRON_SECRET`; scheduled sync calls must send it in the `x-cron-secret` header.
 5. Do not set `ACCESS_CONTROL_DEV_BYPASS` in Vercel. It is ignored in production even if accidentally set.
 
@@ -77,7 +77,7 @@ supabase functions deploy sync-feeds --no-verify-jwt
 3. Add `https://<your-domain>/auth/callback` to the allowed redirect URLs. Add preview callback URLs only when preview authentication is intentionally supported.
 4. Apply `schema_restrict_anonymous_reads.sql` to remove public table reads.
 
-Every user must have a Supabase session whose email either exactly matches `ALLOWED_EMAILS` or belongs to an `ALLOWED_EMAIL_DOMAINS` domain. Exact-email entries remain valid even when their domain is not listed.
+Every user must have a Supabase session whose email exactly matches an address in `ALLOWED_EMAILS`. Matching is case-insensitive.
 
 ## Notes
 

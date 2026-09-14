@@ -100,7 +100,7 @@ export async function middleware(request: NextRequest) {
   const { data } = await supabase.auth.getUser();
   if (
     data.user &&
-    isAllowedEmail(data.user.email, config.allowedEmailDomains, config.allowedEmails)
+    isAllowedEmail(data.user.email, config.allowedEmails)
   ) {
     cleanHeaders.set(INTERNAL_ACCESS_HEADER, "employee");
     const authenticatedResponse = NextResponse.next({ request: { headers: cleanHeaders } });

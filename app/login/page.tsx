@@ -27,7 +27,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <CardContent>
           {params.error ? (
             <p className="mb-4 rounded-2xl bg-destructive/10 p-3 text-sm text-destructive">
-              {params.error === "domain" ? "This email domain is not authorized." : "The sign-in link is invalid or expired."}
+              {params.error === "domain"
+                ? "This email address is not authorized."
+                : params.error === "config"
+                  ? "Access control is not configured."
+                  : params.error === "oauth"
+                    ? "Google sign-in could not be started. Try again."
+                    : "The sign-in link is invalid or expired."}
             </p>
           ) : null}
           <LoginForm nextPath={nextPath} />
