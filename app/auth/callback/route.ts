@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.redirect(new URL(next, request.url));
   } catch (error) {
-    console.error("Magic-link callback failed", error);
+    console.error("Authentication callback failed", error);
     loginUrl.searchParams.set("error", "callback");
     return NextResponse.redirect(loginUrl);
   }

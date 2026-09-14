@@ -70,12 +70,15 @@ supabase functions deploy sync-feeds --no-verify-jwt
 4. Set a strong `CRON_SECRET`; scheduled sync calls must send it in the `x-cron-secret` header.
 5. Do not set `ACCESS_CONTROL_DEV_BYPASS` in Vercel. It is ignored in production even if accidentally set.
 
-## Configure employee magic-link access
+## Configure employee Google access
 
-1. In Supabase Authentication, enable the Email provider and magic-link sign-in.
-2. Set the Supabase Site URL to the production Media Radar URL.
-3. Add `https://<your-domain>/auth/callback` to the allowed redirect URLs. Add preview callback URLs only when preview authentication is intentionally supported.
-4. Apply `schema_restrict_anonymous_reads.sql` to remove public table reads.
+1. Create a Google OAuth client with the Web application type.
+2. Add the production Media Radar origin to the client's authorized JavaScript origins.
+3. Add the Supabase Google provider callback URL to the client's authorized redirect URIs.
+4. In Supabase Authentication, enable Google and enter the OAuth client ID and secret.
+5. Set the Supabase Site URL to the production Media Radar URL.
+6. Add `https://<your-domain>/auth/callback` to the allowed redirect URLs. Add preview callback URLs only when preview authentication is intentionally supported.
+7. Apply `schema_restrict_anonymous_reads.sql` to remove public table reads.
 
 Every user must have a Supabase session whose email exactly matches an address in `ALLOWED_EMAILS`. Matching is case-insensitive.
 

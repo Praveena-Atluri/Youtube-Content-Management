@@ -20,7 +20,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <div className="space-y-2">
             <CardTitle className="text-2xl font-black">Employee access</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Sign in with an approved email address.
+              Enter your authorized email to continue with Google.
             </p>
           </div>
         </CardHeader>
@@ -28,12 +28,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           {params.error ? (
             <p className="mb-4 rounded-2xl bg-destructive/10 p-3 text-sm text-destructive">
               {params.error === "domain"
-                ? "This email address is not authorized."
+                ? "This email address is not authorized. Please contact Admin."
                 : params.error === "config"
                   ? "Access control is not configured."
                   : params.error === "oauth"
                     ? "Google sign-in could not be started. Try again."
-                    : "The sign-in link is invalid or expired."}
+                    : "Google sign-in failed. Try again."}
             </p>
           ) : null}
           <LoginForm nextPath={nextPath} />

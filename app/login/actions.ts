@@ -6,10 +6,37 @@ import { redirect } from "next/navigation";
 import { getAccessConfig, isAllowedEmail, isSafeNextPath } from "@/lib/access-policy";
 import { createSupabaseAuthClient } from "@/lib/supabase-auth";
 
-export type LoginState = {
+export type EmailAuthorizationState = {
+  email: string;
   message: string;
-  status: "idle" | "error" | "success";
+  status: "idle" | "error" | "authorized";
 };
+
+export async function checkEmailAuthorization(
+  _previousState: EmailAuthorizationState,
+  formData: FormData
+): Promise<EmailAuthorizationState> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const accessConfig = getAccessConfig();
+
+  if (!accessConfig.isConfigured) {
+    return {
+      email,
+      message: "Access control is not configured. Please contact Admin.",
+      status: "error"
+    };
+  }
+
+  if (!isAllowedEmail(email, accessConfig.allowedEmails)) {
+    return {
+      email,
+      message: "This email address is not authorized. Please contact Admin.",
+      status: "error"
+    };
+  }
+
+  return { email, message: "Email authorized.", status: "authorized" };
+}
 
 async function buildCallbackUrl(next: string) {
   const requestHeaders = await headers();
@@ -25,51 +52,8 @@ async function buildCallbackUrl(next: string) {
   return callbackUrl;
 }
 
-export async function requestMagicLink(
-  _previousState: LoginState,
-  formData: FormData
-): Promise<LoginState> {
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const requestedNext = String(formData.get("next") ?? "");
-  const next = isSafeNextPath(requestedNext) ? requestedNext : "/";
-  const accessConfig = getAccessConfig();
-
-  if (!accessConfig.isConfigured) {
-    return { status: "error", message: "Access control is not configured. Contact the administrator." };
-  }
-
-  if (!isAllowedEmail(email, accessConfig.allowedEmails)) {
-    return { status: "error", message: "Use an approved email address." };
-  }
-
-  const callbackUrl = await buildCallbackUrl(next);
-  if (!callbackUrl) {
-    return { status: "error", message: "Unable to determine the sign-in callback URL." };
-  }
-
-  try {
-    const supabase = await createSupabaseAuthClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: callbackUrl.toString(),
-        shouldCreateUser: true
-      }
-    });
-
-    if (error) {
-      console.error("Magic-link request failed", error.message);
-      return { status: "error", message: "We could not send the sign-in link. Try again." };
-    }
-  } catch (error) {
-    console.error("Magic-link request failed", error);
-    return { status: "error", message: "Sign-in is temporarily unavailable." };
-  }
-
-  return { status: "success", message: "Check your email for the sign-in link." };
-}
-
 export async function signInWithGoogle(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const requestedNext = String(formData.get("next") ?? "");
   const next = isSafeNextPath(requestedNext) ? requestedNext : "/";
   const accessConfig = getAccessConfig();
@@ -77,6 +61,11 @@ export async function signInWithGoogle(formData: FormData) {
 
   if (!accessConfig.isConfigured) {
     loginUrl.set("error", "config");
+    redirect(`/login?${loginUrl.toString()}`);
+  }
+
+  if (!isAllowedEmail(email, accessConfig.allowedEmails)) {
+    loginUrl.set("error", "domain");
     redirect(`/login?${loginUrl.toString()}`);
   }
 
@@ -91,6 +80,7 @@ export async function signInWithGoogle(formData: FormData) {
     provider: "google",
     options: {
       redirectTo: callbackUrl.toString(),
+      queryParams: { login_hint: email },
       skipBrowserRedirect: true
     }
   });
