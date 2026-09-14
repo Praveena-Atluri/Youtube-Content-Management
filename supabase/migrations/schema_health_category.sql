@@ -5,7 +5,7 @@ alter table public.feed_sources
 
 alter table public.feed_sources
   add constraint feed_sources_category_hint_check
-  check (category_hint in ('news', 'movies', 'tech', 'sports', 'business', 'health', 'devotional'));
+  check (category_hint in ('news', 'crime', 'movies', 'tech', 'sports', 'business', 'health', 'devotional'));
 
 insert into public.feed_sources (source, label, url, category_hint, active, display_order)
 values

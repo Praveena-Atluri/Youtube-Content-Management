@@ -57,6 +57,66 @@ export const DEFAULT_FEED_SOURCES: FeedDefinition[] = [
     categoryHint: "news",
   },
   {
+    source: "ABP Live Telugu",
+    label: "ABP Live - Crime",
+    url: "https://telugu.abplive.com/crime/feed",
+    categoryHint: "crime",
+  },
+  {
+    source: "InSight Crime",
+    label: "InSight Crime",
+    url: "https://insightcrime.org/feed/",
+    categoryHint: "crime",
+  },
+  {
+    source: "India Crime",
+    label: "India Crime",
+    url: "https://www.indiacrime.com/feed/",
+    categoryHint: "crime",
+  },
+  {
+    source: "Crimewatch",
+    label: "Crimewatch",
+    url: "https://crimewatch.net/rss.xml",
+    categoryHint: "crime",
+  },
+  {
+    source: "FBI",
+    label: "FBI - Top Stories",
+    url: "https://www.fbi.gov/feeds/fbi-top-stories/rss.xml",
+    categoryHint: "crime",
+  },
+  {
+    source: "FBI",
+    label: "FBI - National Press Releases",
+    url: "https://www.fbi.gov/feeds/national-press-releases/rss.xml",
+    categoryHint: "crime",
+  },
+  {
+    source: "FBI",
+    label: "FBI - Executive Speeches",
+    url: "https://www.fbi.gov/feeds/executive-speeches/rss.xml",
+    categoryHint: "crime",
+  },
+  {
+    source: "FBI",
+    label: "FBI - Congressional Testimony",
+    url: "https://www.fbi.gov/feeds/congressional-testimony/rss.xml",
+    categoryHint: "crime",
+  },
+  {
+    source: "FBI",
+    label: "FBI - News Blog",
+    url: "https://www.fbi.gov/feeds/news-blog/rss.xml",
+    categoryHint: "crime",
+  },
+  {
+    source: "FBI",
+    label: "FBI - All Wanted",
+    url: "https://www.fbi.gov/feeds/all-wanted/rss.xml",
+    categoryHint: "crime",
+  },
+  {
     source: "Lux",
     label: "Lux Camera",
     url: "https://lux.camera/rss",
@@ -226,8 +286,9 @@ export const DEFAULT_FEED_SOURCES: FeedDefinition[] = [
   }
 ];
 
-const CATEGORY_ORDER: TrendingCategory[] = [
+export const CATEGORY_ORDER: TrendingCategory[] = [
   "news",
+  "crime",
   "movies",
   "sports",
   "business",

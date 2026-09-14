@@ -34,12 +34,12 @@ values
   ('BBC Sport', 'BBC Sport', 'https://feeds.bbci.co.uk/sport/rss.xml?edition=uk', 'sports', true, 6010),
 
   -- FBI
-  ('FBI', 'FBI - Top Stories', 'https://www.fbi.gov/feeds/fbi-top-stories/rss.xml', 'news', true, 6011),
-  ('FBI', 'FBI - National Press Releases', 'https://www.fbi.gov/feeds/national-press-releases/rss.xml', 'news', true, 6012),
-  ('FBI', 'FBI - Executive Speeches', 'https://www.fbi.gov/feeds/executive-speeches/rss.xml', 'news', true, 6013),
-  ('FBI', 'FBI - Congressional Testimony', 'https://www.fbi.gov/feeds/congressional-testimony/rss.xml', 'news', true, 6014),
-  ('FBI', 'FBI - News Blog', 'https://www.fbi.gov/feeds/news-blog/rss.xml', 'news', true, 6015),
-  ('FBI', 'FBI - All Wanted', 'https://www.fbi.gov/feeds/all-wanted/rss.xml', 'news', true, 6016),
+  ('FBI', 'FBI - Top Stories', 'https://www.fbi.gov/feeds/fbi-top-stories/rss.xml', 'crime', true, 6011),
+  ('FBI', 'FBI - National Press Releases', 'https://www.fbi.gov/feeds/national-press-releases/rss.xml', 'crime', true, 6012),
+  ('FBI', 'FBI - Executive Speeches', 'https://www.fbi.gov/feeds/executive-speeches/rss.xml', 'crime', true, 6013),
+  ('FBI', 'FBI - Congressional Testimony', 'https://www.fbi.gov/feeds/congressional-testimony/rss.xml', 'crime', true, 6014),
+  ('FBI', 'FBI - News Blog', 'https://www.fbi.gov/feeds/news-blog/rss.xml', 'crime', true, 6015),
+  ('FBI', 'FBI - All Wanted', 'https://www.fbi.gov/feeds/all-wanted/rss.xml', 'crime', true, 6016),
 
   -- CBS News topic feeds (broadcast and show feeds are intentionally omitted)
   ('CBS News', 'CBS News - Top Stories', 'https://www.cbsnews.com/latest/rss/main', 'news', true, 6017),
@@ -54,7 +54,7 @@ values
   ('CBS News', 'CBS News - Space', 'https://www.cbsnews.com/latest/rss/space', 'tech', true, 6026),
   ('CBS News', 'CBS News - Entertainment', 'https://www.cbsnews.com/latest/rss/entertainment', 'movies', true, 6027),
 
-  ('InSight Crime', 'InSight Crime', 'https://insightcrime.org/feed/', 'news', true, 6028),
+  ('InSight Crime', 'InSight Crime', 'https://insightcrime.org/feed/', 'crime', true, 6028),
 
   -- CNN (the publisher's RSS host currently works only over HTTP)
   ('CNN', 'CNN - Edition', 'http://rss.cnn.com/rss/edition.rss', 'news', true, 6029),
@@ -65,7 +65,7 @@ values
   ('CNN', 'CNN - Entertainment', 'http://rss.cnn.com/rss/edition_entertainment.rss', 'movies', true, 6034),
   ('CNN', 'CNN - Sport', 'http://rss.cnn.com/rss/edition_sport.rss', 'sports', true, 6035),
 
-  ('India Crime', 'India Crime', 'https://www.indiacrime.com/feed/', 'news', true, 6036),
+  ('India Crime', 'India Crime', 'https://www.indiacrime.com/feed/', 'crime', true, 6036),
 
   -- NDTV (the existing NDTV Sports URL is not repeated)
   ('NDTV', 'NDTV - Top Stories', 'https://feeds.feedburner.com/ndtvnews-top-stories', 'news', true, 6037),
@@ -127,7 +127,7 @@ values
   ('Indian Express', 'Indian Express - Lifestyle', 'https://indianexpress.com/section/lifestyle/feed/', 'health', true, 6088),
 
   ('Al Jazeera', 'Al Jazeera', 'https://www.aljazeera.com/xml/rss/all.xml', 'news', true, 6089),
-  ('Crimewatch', 'Crimewatch', 'https://crimewatch.net/rss.xml', 'news', true, 6090),
+  ('Crimewatch', 'Crimewatch', 'https://crimewatch.net/rss.xml', 'crime', true, 6090),
 
   -- India Today
   ('India Today', 'India Today - Home', 'https://www.indiatoday.in/rss/home', 'news', true, 6091),

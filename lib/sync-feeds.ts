@@ -1,10 +1,12 @@
 import { getActiveFeedSources } from "@/lib/feed-sources";
+import { getCrimeKeywords } from "@/lib/crime-keywords";
 import { getDevotionalKeywords } from "@/lib/devotional-keywords";
 import { getMovieKeywords } from "@/lib/movie-keywords";
 import { getSportsKeywords } from "@/lib/sports-keywords";
 import { fetchFeedItems } from "@/lib/rss";
 import { resolveArticleUrl } from "@/lib/source-url";
 import { createSupabaseAdminClient } from "@/lib/supabase";
+import { inferTaxonomy } from "@/lib/taxonomy";
 import type { TrendingCategory } from "@/lib/types";
 
 function canonicalizeArticleUrl(url: string) {
@@ -48,70 +50,9 @@ function canonicalizeArticleUrl(url: string) {
   }
 }
 
-function inferTaxonomy(
-  text: string,
-  articleUrl: string,
-  fallback: TrendingCategory,
-  movieKeywords: string[],
-  devotionalKeywords: string[],
-  sportsKeywords: string[]
-): {
-  category: TrendingCategory;
-} {
-  const normalized = `${text} ${articleUrl}`.toLowerCase();
-  const escapeRegex = (value: string) =>
-    value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const containsWholeKeyword = (keyword: string) => {
-    const pattern = new RegExp(
-      `(^|[^\\p{L}\\p{N}])${escapeRegex(keyword.toLowerCase())}(?=$|[^\\p{L}\\p{N}])`,
-      "u"
-    );
-
-    return pattern.test(normalized);
-  };
-  const includesAny = (keywords: string[]) => keywords.some(containsWholeKeyword);
-
-  if (fallback === "tech") {
-    return { category: "tech" };
-  }
-
-  if (fallback === "movies") {
-    return { category: "movies" };
-  }
-
-  if (fallback === "sports") {
-    return { category: "sports" };
-  }
-
-  if (fallback === "business") {
-    return { category: "business" };
-  }
-
-  if (fallback === "health") {
-    return { category: "health" };
-  }
-
-  if (fallback === "devotional") {
-    return { category: "devotional" };
-  }
-
-  if (includesAny(sportsKeywords)) {
-    return { category: "sports" };
-  }
-
-  if (includesAny(movieKeywords)) {
-    return { category: "movies" };
-  }
-
-  if (includesAny(devotionalKeywords)) {
-    return { category: "devotional" };
-  }
-
-  return { category: "news" };
-}
-
 const CATEGORY_BOOST: Record<string, number> = {
   news:     15,
+  crime:    15,
   movies:   12,
   sports:   12,
   business: 10,
@@ -216,6 +157,7 @@ export async function syncFeeds() {
   const supabase = createSupabaseAdminClient();
   const syncTime = new Date().toISOString();
   const feedSources = await getActiveFeedSources();
+  const crimeKeywords = getCrimeKeywords();
   const movieKeywords = getMovieKeywords();
   const devotionalKeywords = getDevotionalKeywords();
   const sportsKeywords = getSportsKeywords();
@@ -378,9 +320,12 @@ export async function syncFeeds() {
       `${candidate.title} ${candidate.summary} ${candidate.contentBody}`,
       candidate.articleUrl,
       candidate.feed.categoryHint,
-      movieKeywords,
-      devotionalKeywords,
-      sportsKeywords
+      {
+        crime: crimeKeywords,
+        movies: movieKeywords,
+        devotional: devotionalKeywords,
+        sports: sportsKeywords
+      }
     );
 
     const viralityScore = calculateViralityScore({

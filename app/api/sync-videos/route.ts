@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase";
+import { isAuthorizedSyncRequest } from "@/lib/request-access";
 import { YOUTUBE_CHANNELS } from "@/lib/youtube-channels";
 import { fetchAndEnrichChannelVideos } from "@/lib/youtube-videos";
 
@@ -18,10 +19,7 @@ async function deleteStaleVideos() {
 }
 
 export async function POST(request: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  const headerSecret = request.headers.get("x-cron-secret");
-
-  if (secret && headerSecret !== secret) {
+  if (!isAuthorizedSyncRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

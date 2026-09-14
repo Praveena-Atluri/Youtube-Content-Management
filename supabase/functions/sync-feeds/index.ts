@@ -1,9 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 
-type CategoryHint = "news" | "movies" | "tech" | "sports" | "business" | "health" | "devotional";
+type CategoryHint = "news" | "crime" | "movies" | "tech" | "sports" | "business" | "health" | "devotional";
 
 const VALID_CATEGORY_HINTS: CategoryHint[] = [
   "news",
+  "crime",
   "movies",
   "tech",
   "sports",
@@ -58,6 +59,16 @@ const DEFAULT_FEEDS = [
   ["NT News", "NT News", "https://www.ntnews.com/feed", "news"],
   ["Andhrajyothy", "Andhrajyothy", "https://www.andhrajyothy.com/rss/headlines.xml", "news"],
   ["Eenadu", "Eenadu", "https://www.eenadu.net/rss/latestnews.xml", "news"],
+  ["ABP Live Telugu", "ABP Live - Crime", "https://telugu.abplive.com/crime/feed", "crime"],
+  ["InSight Crime", "InSight Crime", "https://insightcrime.org/feed/", "crime"],
+  ["India Crime", "India Crime", "https://www.indiacrime.com/feed/", "crime"],
+  ["Crimewatch", "Crimewatch", "https://crimewatch.net/rss.xml", "crime"],
+  ["FBI", "FBI - Top Stories", "https://www.fbi.gov/feeds/fbi-top-stories/rss.xml", "crime"],
+  ["FBI", "FBI - National Press Releases", "https://www.fbi.gov/feeds/national-press-releases/rss.xml", "crime"],
+  ["FBI", "FBI - Executive Speeches", "https://www.fbi.gov/feeds/executive-speeches/rss.xml", "crime"],
+  ["FBI", "FBI - Congressional Testimony", "https://www.fbi.gov/feeds/congressional-testimony/rss.xml", "crime"],
+  ["FBI", "FBI - News Blog", "https://www.fbi.gov/feeds/news-blog/rss.xml", "crime"],
+  ["FBI", "FBI - All Wanted", "https://www.fbi.gov/feeds/all-wanted/rss.xml", "crime"],
   ["Lux", "Lux Camera", "https://lux.camera/rss", "tech"],
   ["TechRadar", "TechRadar", "https://www.techradar.com/rss", "tech"],
   ["404 Media", "404 Media", "https://www.404media.co/rss/", "tech"],
@@ -86,6 +97,22 @@ const DEFAULT_FEEDS = [
   ["WHO", "WHO - Life Style", "https://www.who.int/rss-feeds/news-english.xml", "health"],
   ["TV9 Telugu", "TV9 Telugu - Life Style", "https://tv9telugu.com/health/feed", "health"],
   ["NTV Telugu", "NTV Telugu - Life Style", "https://ntvtelugu.com/health/feed", "health"]
+] as const;
+
+const DEFAULT_CRIME_KEYWORDS = [
+  "crime", "criminal", "murder", "homicide", "assassination", "attempted murder",
+  "rape", "sexual assault", "kidnapping", "abduction", "robbery", "burglary",
+  "theft", "arson", "smuggling", "trafficking", "narcotics", "drug seizure",
+  "gangster", "mafia", "fraud", "scam", "cybercrime", "cyber crime", "phishing",
+  "extortion", "blackmail", "arrested", "accused", "suspect", "fir", "chargesheet",
+  "charge sheet", "convicted", "sentenced", "custody", "remand", "prison", "bail",
+  "terrorism", "terrorist", "encounter", "నేరం", "నేరాలు", "క్రైమ్", "హత్య",
+  "హత్యాయత్నం", "అత్యాచారం", "లైంగిక వేధింపులు", "కిడ్నాప్", "అపహరణ", "దోపిడీ",
+  "చోరీ", "దొంగతనం", "స్మగ్లింగ్", "అక్రమ రవాణా", "మాదకద్రవ్యాలు", "డ్రగ్స్",
+  "గంజాయి", "గ్యాంగ్", "మాఫియా", "మోసం", "కుంభకోణం", "సైబర్ నేరం", "ఫిషింగ్",
+  "బెదిరింపు", "బ్లాక్‌మెయిల్", "అరెస్ట్", "నిందితుడు", "అనుమానితుడు", "ఎఫ్ఐఆర్",
+  "ఎఫ్‌ఐఆర్", "చార్జిషీట్", "అదుపులోకి", "రిమాండ్", "జైలు", "బెయిల్", "శిక్ష",
+  "ఉగ్రవాదం", "ఉగ్రవాది", "ఎన్‌కౌంటర్"
 ] as const;
 
 const DEFAULT_MOVIE_KEYWORDS = [
@@ -180,6 +207,18 @@ const DEFAULT_DEVOTIONAL_KEYWORDS = [
   "మహాభారతం"
 ] as const;
 
+const DEFAULT_SPORTS_KEYWORDS = [
+  "cricket", "ipl", "icc", "bcci", "test match", "odi", "t20", "world cup",
+  "ranji", "rohit sharma", "virat kohli", "sanju samson", "bumrah", "dhoni",
+  "sunrisers", "rcb", "csk", "mi", "kkr", "dc", "srh", "gt", "lsg", "pbks", "rr",
+  "football", "fifa", "tennis", "badminton", "kabaddi", "pro kabaddi", "hockey",
+  "boxing", "wrestling", "wwe", "athletics", "marathon", "chess", "carrom",
+  "kho kho", "shooting", "archery", "weightlifting", "olympics", "athlete",
+  "stadium", "match", "tournament", "championship", "league", "క్రికెట్", "ఐపీఎల్",
+  "ఫుట్‌బాల్", "స్పోర్ట్స్", "టోర్నమెంట్", "స్కోర్", "విజేత", "ఆటగాడు", "మ్యాచ్",
+  "క్రికెటర్", "బ్యాట్స్‌మన్", "బౌలర్"
+] as const;
+
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -269,6 +308,17 @@ function getMovieKeywords() {
     : [...DEFAULT_MOVIE_KEYWORDS];
 }
 
+function getCrimeKeywords() {
+  const configuredKeywords = (Deno.env.get("CRIME_KEYWORDS") ?? "")
+    .split(/[\n,]+/)
+    .map((keyword) => keyword.trim())
+    .filter(Boolean);
+
+  return configuredKeywords.length > 0
+    ? configuredKeywords
+    : [...DEFAULT_CRIME_KEYWORDS];
+}
+
 function getDevotionalKeywords() {
   const configuredKeywords = (Deno.env.get("DEVOTIONAL_KEYWORDS") ?? "")
     .split(/[\n,]+/)
@@ -278,6 +328,17 @@ function getDevotionalKeywords() {
   return configuredKeywords.length > 0
     ? configuredKeywords
     : [...DEFAULT_DEVOTIONAL_KEYWORDS];
+}
+
+function getSportsKeywords() {
+  const configuredKeywords = (Deno.env.get("SPORTS_KEYWORDS") ?? "")
+    .split(/[\n,]+/)
+    .map((keyword) => keyword.trim())
+    .filter(Boolean);
+
+  return configuredKeywords.length > 0
+    ? configuredKeywords
+    : [...DEFAULT_SPORTS_KEYWORDS];
 }
 
 async function getActiveFeedSources() {
@@ -453,8 +514,10 @@ function inferTaxonomy(
   text: string,
   articleUrl: string,
   fallback: string,
+  crimeKeywords: readonly string[],
   movieKeywords: readonly string[],
-  devotionalKeywords: readonly string[]
+  devotionalKeywords: readonly string[],
+  sportsKeywords: readonly string[]
 ) {
   const normalized = `${text} ${articleUrl}`.toLowerCase();
   const escapeRegex = (value: string) =>
@@ -469,28 +532,16 @@ function inferTaxonomy(
   };
   const includesAny = (keywords: readonly string[]) => keywords.some(containsWholeKeyword);
 
-  if (fallback === "tech") {
-    return { category: "tech" };
+  if (fallback !== "news") {
+    return { category: fallback };
   }
 
-  if (fallback === "movies") {
-    return { category: "movies" };
+  if (includesAny(crimeKeywords)) {
+    return { category: "crime" };
   }
 
-  if (fallback === "sports") {
+  if (includesAny(sportsKeywords)) {
     return { category: "sports" };
-  }
-
-  if (fallback === "business") {
-    return { category: "business" };
-  }
-
-  if (fallback === "health") {
-    return { category: "health" };
-  }
-
-  if (fallback === "devotional") {
-    return { category: "devotional" };
   }
 
   if (includesAny(movieKeywords)) {
@@ -519,8 +570,10 @@ Deno.serve(async () => {
   const syncVersion = "bounded-batch-v3";
   const existingStoryPageSize = 1000;
   const feeds = await getActiveFeedSources();
+  const crimeKeywords = getCrimeKeywords();
   const movieKeywords = getMovieKeywords();
   const devotionalKeywords = getDevotionalKeywords();
+  const sportsKeywords = getSportsKeywords();
   const syncTime = new Date().toISOString();
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { error: deleteError, count: deletedCount } = await supabase
@@ -672,8 +725,10 @@ Deno.serve(async () => {
       `${item.title} ${item.summary} ${item.contentBody}`,
       item.articleUrl,
       fallbackCategory,
+      crimeKeywords,
       movieKeywords,
-      devotionalKeywords
+      devotionalKeywords,
+      sportsKeywords
     );
 
     prepared.push({

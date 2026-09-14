@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const MIGRATION = "supabase/migrations/schema_rss_feed_expansion.sql";
-const ROW_PATTERN = /^\s*\('((?:''|[^'])*)',\s*'((?:''|[^'])*)',\s*'(https?:\/\/(?:''|[^'])*)',\s*'(news|movies|tech|sports|business|health|devotional)',\s*(true|false),\s*(\d+)\),?$/gm;
+const ROW_PATTERN = /^\s*\('((?:''|[^'])*)',\s*'((?:''|[^'])*)',\s*'(https?:\/\/(?:''|[^'])*)',\s*'(news|crime|movies|tech|sports|business|health|devotional)',\s*(true|false),\s*(\d+)\),?$/gm;
 
 function rowsFromSql(sql) {
   return [...sql.matchAll(ROW_PATTERN)].map((match) => ({

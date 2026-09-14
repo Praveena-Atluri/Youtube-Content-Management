@@ -6,7 +6,7 @@ import test from "node:test";
 const MIGRATIONS_DIR = "supabase/migrations";
 const MIGRATION_NAME = "schema_requested_international_rss_feeds.sql";
 const MIGRATION = path.join(MIGRATIONS_DIR, MIGRATION_NAME);
-const ROW_PATTERN = /^\s*\('((?:''|[^'])*)',\s*'((?:''|[^'])*)',\s*'(https?:\/\/(?:''|[^'])*)',\s*'(news|movies|tech|sports|business|health|devotional)',\s*(true|false),\s*(\d+)\),?$/gm;
+const ROW_PATTERN = /^\s*\('((?:''|[^'])*)',\s*'((?:''|[^'])*)',\s*'(https?:\/\/(?:''|[^'])*)',\s*'(news|crime|movies|tech|sports|business|health|devotional)',\s*(true|false),\s*(\d+)\),?$/gm;
 
 function rowsFromSql(sql) {
   return [...sql.matchAll(ROW_PATTERN)].map((match) => ({
@@ -42,7 +42,8 @@ test("requested international RSS migration has the approved rows and mappings",
   );
 
   assert.deepEqual(categoryCounts, {
-    news: 64,
+    news: 55,
+    crime: 9,
     business: 7,
     health: 9,
     tech: 11,

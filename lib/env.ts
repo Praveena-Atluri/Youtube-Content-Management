@@ -12,6 +12,7 @@ export function getEnv() {
     supabaseUrl: requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
     supabaseAnonKey: requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
     supabaseServiceRoleKey: requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
+    crimeKeywords: process.env.CRIME_KEYWORDS ?? "",
     movieKeywords: process.env.MOVIE_KEYWORDS ?? "",
     devotionalKeywords: process.env.DEVOTIONAL_KEYWORDS ?? "",
     sportsKeywords: process.env.SPORTS_KEYWORDS ?? "",

@@ -1,5 +1,6 @@
 export type TrendingCategory =
   | "news"
+  | "crime"
   | "movies"
   | "tech"
   | "sports"

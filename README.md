@@ -12,7 +12,7 @@ A Next.js 15 dashboard for scouting Telugu trends, deduplicating them by source 
 
 ## Features
 
-- Sidebar dashboard with `All`, `News`, `Movies`, `Sports`, `Business`, `Life Style`, `Devotional`, and `Tech`
+- Sidebar dashboard with `All`, `News`, `Crime`, `Movies`, `Sports`, `Business`, `Life Style`, `Devotional`, and `Tech`
 - Sorting by `Virality Score`, `Published`, or `Synced Time`
 - RSS ingestion from Telugu news feeds and dedicated category feeds
 - Feed sources managed in Supabase through a `feed_sources` table
@@ -36,8 +36,9 @@ cp .env.example .env.local
 ```
 
 3. Add your Supabase credentials.
+   Set `ACCESS_CONTROL_DEV_BYPASS=true` for local development only.
    Optional:
-   set `MOVIE_KEYWORDS`, `DEVOTIONAL_KEYWORDS`, or `SPORTS_KEYWORDS` as a comma-separated or newline-separated list if you want to override the default keyword sets.
+   set `CRIME_KEYWORDS`, `MOVIE_KEYWORDS`, `DEVOTIONAL_KEYWORDS`, or `SPORTS_KEYWORDS` as a comma-separated or newline-separated list if you want to override the default keyword sets.
 
 4. Apply the migrations in Supabase:
 
@@ -65,13 +66,32 @@ supabase functions deploy sync-feeds --no-verify-jwt
 
 1. Import the repo into Vercel.
 2. Add the env vars from [.env.example](/Users/praveena.atluri/Documents/youtube-content-management/.env.example:1).
-3. Optionally protect `/api/sync` with `CRON_SECRET` and call it from Vercel Cron.
+3. Set `ALLOWED_EMAIL_DOMAINS` to approved company domains and/or `ALLOWED_EMAILS` to approved individual addresses. Both accept comma-separated values.
+4. Set a strong `CRON_SECRET`; scheduled sync calls must send it in the `x-cron-secret` header.
+5. Do not set `ACCESS_CONTROL_DEV_BYPASS` in Vercel. It is ignored in production even if accidentally set.
+
+## Configure employee magic-link access
+
+1. In Supabase Authentication, enable the Email provider and magic-link sign-in.
+2. Set the Supabase Site URL to the production Media Radar URL.
+3. Add `https://<your-domain>/auth/callback` to the allowed redirect URLs. Add preview callback URLs only when preview authentication is intentionally supported.
+4. Apply `schema_restrict_anonymous_reads.sql` to remove public table reads.
+
+Every user must have a Supabase session whose email either exactly matches `ALLOWED_EMAILS` or belongs to an `ALLOWED_EMAIL_DOMAINS` domain. Exact-email entries remain valid even when their domain is not listed.
 
 ## Notes
 
-- Active categories are `news`, `movies`, `sports`, `business`, `health`, `devotional`, and `tech`.
+- Active categories are `news`, `crime`, `movies`, `sports`, `business`, `health`, `devotional`, and `tech`.
 - Active feed sources are loaded from `public.feed_sources` in Supabase.
-- Movie, devotional, and sports classification is keyword-based and can be overridden with `MOVIE_KEYWORDS`, `DEVOTIONAL_KEYWORDS`, and `SPORTS_KEYWORDS`.
+- Crime, movie, devotional, and sports classification is keyword-based and can be overridden with `CRIME_KEYWORDS`, `MOVIE_KEYWORDS`, `DEVOTIONAL_KEYWORDS`, and `SPORTS_KEYWORDS`.
+- Crime keywords are evaluated first for general-news feeds; explicit category-specific feeds keep their configured category.
 - Keyword classification also checks the resolved source/article URL.
 - Any story that does not match a category hint or keyword set falls back to `news`.
 - Duplicate detection is based on normalized source URLs.
+
+### Crime sources
+
+The dedicated Crime category includes ABP Live - Crime, InSight Crime, India Crime,
+Crimewatch, and the FBI Top Stories, National Press Releases, Executive Speeches,
+Congressional Testimony, News Blog, and All Wanted feeds. Crime stories from other
+general-news feeds are detected using the configured English and Telugu keywords.

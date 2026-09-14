@@ -11,12 +11,13 @@ create extension if not exists pgcrypto;
 
 do $$ begin
   if not exists (select 1 from pg_type where typname = 'trending_category_v3') then
-    create type trending_category_v3 as enum ('news', 'movies', 'tech', 'sports', 'business', 'health', 'devotional');
+    create type trending_category_v3 as enum ('news', 'crime', 'movies', 'tech', 'sports', 'business', 'health', 'devotional');
   end if;
 end $$;
 
 alter type trending_category_v3 add value if not exists 'devotional';
 alter type trending_category_v3 add value if not exists 'health';
+alter type trending_category_v3 add value if not exists 'crime' after 'news';
 
 -- ============================================================
 -- Tables
@@ -38,7 +39,7 @@ create table if not exists public.feed_sources (
   source         text not null,
   label          text not null,
   url            text not null unique,
-  category_hint  text not null check (category_hint in ('news', 'movies', 'tech', 'sports', 'business', 'health', 'devotional')),
+  category_hint  text not null check (category_hint in ('news', 'crime', 'movies', 'tech', 'sports', 'business', 'health', 'devotional')),
   active         boolean not null default true,
   display_order  integer not null default 0,
   created_at     timestamptz not null default now(),
@@ -50,7 +51,7 @@ alter table public.feed_sources
 
 alter table public.feed_sources
   add constraint feed_sources_category_hint_check
-  check (category_hint in ('news', 'movies', 'tech', 'sports', 'business', 'health', 'devotional'));
+  check (category_hint in ('news', 'crime', 'movies', 'tech', 'sports', 'business', 'health', 'devotional'));
 
 create table if not exists public.youtube_videos (
   id             uuid primary key default gen_random_uuid(),
@@ -95,14 +96,8 @@ alter table public.trending_topics  enable row level security;
 alter table public.feed_sources     enable row level security;
 alter table public.youtube_videos   enable row level security;
 
-create policy "Public read trending topics"
-  on public.trending_topics for select to anon, authenticated using (true);
-
-create policy "Public read feed sources"
-  on public.feed_sources for select to anon, authenticated using (true);
-
-create policy "public read youtube_videos"
-  on public.youtube_videos for select using (true);
+-- No anon/authenticated read policies are created. The application reads
+-- these tables only through its server-side service-role client.
 
 -- ============================================================
 -- Seed: feed sources
@@ -195,7 +190,7 @@ values
   ('ABP Live Telugu', 'ABP Live - Politics',        'https://telugu.abplive.com/politics/feed',                    'news', true,  99),
   ('ABP Live Telugu', 'ABP Live - Andhra Pradesh',  'https://telugu.abplive.com/andhra-pradesh/feed',              'news', true, 100),
   ('ABP Live Telugu', 'ABP Live - Amaravati',       'https://telugu.abplive.com/andhra-pradesh/amravati/feed',     'news', true, 101),
-  ('ABP Live Telugu', 'ABP Live - Crime',           'https://telugu.abplive.com/crime/feed',                       'news', true, 102),
+  ('ABP Live Telugu', 'ABP Live - Crime',           'https://telugu.abplive.com/crime/feed',                       'crime', true, 102),
   ('ABP Live Telugu', 'ABP Live - News',            'https://telugu.abplive.com/news/feed',                        'news', true, 103),
   ('ABP Live Telugu', 'ABP Live - World',           'https://telugu.abplive.com/news/world/feed',                  'news', true, 104),
   ('ABP Live Telugu', 'ABP Live - India',           'https://telugu.abplive.com/news/india/feed',                  'news', true, 105),
