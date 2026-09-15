@@ -5,6 +5,7 @@ import {
   getAccessConfig,
   INTERNAL_ACCESS_HEADER,
   isAllowedEmail,
+  isAuthenticationDisabled,
   isDevelopmentBypassEnabled,
   secretsMatch
 } from "@/lib/access-policy";
@@ -61,6 +62,12 @@ export async function middleware(request: NextRequest) {
 
   if (isDevelopmentBypassEnabled()) {
     return responseWithAccess(request, "development");
+  }
+
+  // Emergency UI bypass only. API routes continue to require a valid employee
+  // session or their existing automation secret.
+  if (isAuthenticationDisabled() && !pathname.startsWith("/api/")) {
+    return responseWithAccess(request, "temporary-public");
   }
 
   const config = getAccessConfig();

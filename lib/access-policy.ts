@@ -6,6 +6,7 @@ export type AccessConfig = {
 type AccessEnvironment = {
   ACCESS_CONTROL_DEV_BYPASS?: string;
   ALLOWED_EMAILS?: string;
+  AUTHENTICATION_DISABLED?: string;
   NODE_ENV?: string;
 };
 
@@ -40,6 +41,10 @@ export function isAllowedEmail(
 
 export function isDevelopmentBypassEnabled(env: AccessEnvironment = process.env) {
   return env.NODE_ENV !== "production" && env.ACCESS_CONTROL_DEV_BYPASS === "true";
+}
+
+export function isAuthenticationDisabled(env: AccessEnvironment = process.env) {
+  return env.AUTHENTICATION_DISABLED === "true";
 }
 
 export function secretsMatch(candidate: string | null, expected: string | undefined) {

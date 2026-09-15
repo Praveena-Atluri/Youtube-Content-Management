@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   getAccessConfig,
   isAllowedEmail,
+  isAuthenticationDisabled,
   isDevelopmentBypassEnabled,
   isSafeNextPath,
   secretsMatch
@@ -46,6 +47,12 @@ test("development bypass cannot be enabled in production", () => {
     isDevelopmentBypassEnabled({ NODE_ENV: "production", ACCESS_CONTROL_DEV_BYPASS: "true" }),
     false
   );
+});
+
+test("authentication can only be disabled with an explicit true value", () => {
+  assert.equal(isAuthenticationDisabled({ AUTHENTICATION_DISABLED: "true" }), true);
+  assert.equal(isAuthenticationDisabled({ AUTHENTICATION_DISABLED: "false" }), false);
+  assert.equal(isAuthenticationDisabled({}), false);
 });
 
 test("post-login redirects only accept local absolute paths", () => {

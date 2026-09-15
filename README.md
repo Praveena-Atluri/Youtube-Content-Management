@@ -70,6 +70,10 @@ supabase functions deploy sync-feeds --no-verify-jwt
 4. Set a strong `CRON_SECRET`; scheduled sync calls must send it in the `x-cron-secret` header.
 5. Do not set `ACCESS_CONTROL_DEV_BYPASS` in Vercel. It is ignored in production even if accidentally set.
 
+### Temporary authentication bypass
+
+Set `AUTHENTICATION_DISABLED=true` in the Vercel Production environment and redeploy to make dashboard pages publicly accessible while authentication infrastructure is unavailable. API routes remain protected. Remove the variable or set it to `false`, then redeploy, as soon as authentication should be enforced again.
+
 ## Configure employee Google access
 
 1. Create a Google OAuth client with the Web application type.
